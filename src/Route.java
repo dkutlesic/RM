@@ -10,43 +10,4 @@ public class Route {
         this.distance = distance;
         this.nextHop = nextHop;
     }
-
-
-
-
-
-
-    //getters and setters
-
-    public Node getSource() {
-        return source;
-    }
-
-    public Node getDestination() {
-        return destination;
-    }
-
-    public int getDistance() {
-        return distance;
-    }
-
-    public Node getNextHop() {
-        return nextHop;
-    }
-
-    public void setSource(Node source) {
-        this.source = source;
-    }
-
-    public void setDestination(Node destination) {
-        this.destination = destination;
-    }
-
-    public void setDistance(int distance) {
-        this.distance = distance;
-    }
-
-    public void setNextHop(Node nextHop) {
-        this.nextHop = nextHop;
-    }
 }

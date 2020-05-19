@@ -1,29 +1,21 @@
 public class Host {
 
-    private Node node;
+    private Node router;
 
     public Host(Node node) {
-        this.node = node;
+        this.router = node;
     }
 
     public void connect(int port){
         //TODO
     }
 
-    public void forwardMessage(String message, Node node){
-        //TODO
+    public void forwardMessage(Message message){
+
     }
 
+    public static void main(String[] args) {
 
-
-
-    //getters and setters
-
-    public Node getNode() {
-        return node;
     }
 
-    public void setNode(Node node) {
-        this.node = node;
-    }
 }
