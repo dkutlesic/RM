@@ -106,7 +106,9 @@ public class Node extends Thread{
                 // we know where to send
                 try {
                     // destination = port (for now)
-                    routingTable.get(message.getDestination()).writeObject(message);
+                    PrintWriter out = new PrintWriter(routingTable.get(message.getDestination()).getOutputStream(), true);
+                    out.write(message.toString());
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -125,7 +127,7 @@ public class Node extends Thread{
 
     //tables
     private Vector<Vector<Integer>> adjacentNodesTable;
-    private Map<Integer, ObjectOutputStream> routingTable; // hack to get first thing working
+    private Map<Integer, Socket> routingTable; // hack to get first thing working
                                                             // this should be done smarter
 
     //utils
