@@ -1,7 +1,10 @@
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -12,29 +15,56 @@ public class Node extends Thread{
 
     private class Reader extends Thread{
         Selector selector;
+        ServerSocketChannel serverSocketChannel;
 
-        public Reader(Selector selector) {
+        public Reader() {
             // selector to deal with multiple input channels
-            this.selector = selector;
         }
 
         @Override
         public void run() {
-            while(true){
-                try {
+            try{
+                serverSocketChannel = ServerSocketChannel.open();
+                serverSocketChannel.bind(new InetSocketAddress(port));
+                serverSocketChannel.configureBlocking(false);
+                serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+
+                while(true) {
                     selector.select();
+                    Iterator<SelectionKey> selectionKeyIterator = selector.selectedKeys().iterator();
+                    while (selectionKeyIterator.hasNext()) {
+                        SelectionKey key = selectionKeyIterator.next();
+                        selectionKeyIterator.remove();
 
-                    Iterator<SelectionKey> keyIterator = selector.selectedKeys().iterator();
-                    while(keyIterator.hasNext()){
-                        SelectionKey key = keyIterator.next();
-                        if(key.isReadable()){
-                            readFromKey(key);
-                        }
+                        if (key.isAcceptable()) {
+                            ServerSocketChannel server = (ServerSocketChannel) key.channel();
+                            SocketChannel client = server.accept();
+                            System.out.println(identification + ": Accepted connection");
+                            client.configureBlocking(false);
+                            client.register(selector, SelectionKey.OP_READ);
+                        } else if (key.isReadable()) {
+                            SocketChannel client = (SocketChannel) key.channel();
+
+                            ByteBuffer byteBuffer = (ByteBuffer) key.attachment();
+                            if (byteBuffer == null) {
+                                byteBuffer = ByteBuffer.allocate(4096);
+                                key.attach(byteBuffer);
+                            }
+                            client.read(byteBuffer);
+                            String requestCompleted = new String(byteBuffer.array());
+                            if (requestCompleted.contains("!")) {
+                                Message message = Message.parseMessage(requestCompleted);
+                                System.out.println(identification + " : " + message.toString());
+                                key.cancel(); //hacky, maybe change it
+
+                            } else
+                                System.err.println("Not supported message type");
+                        } else
+                            System.err.println("Not supported key action!");
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
-
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
 
@@ -47,41 +77,43 @@ public class Node extends Thread{
     private class Writer extends Thread{
 
 
-        BlockingQueue<Message> writing_buffer;
+        BlockingQueue<Message> writingBuffer;
 
         public Writer() {
-            writing_buffer = new ArrayBlockingQueue<>(BUFF_SIZE);
+            writingBuffer = new ArrayBlockingQueue<>(BUFF_SIZE);
         }
 
         @Override
         public void run() {
             while(true){
-                Message next_message = null;
+                Message nextMessage = null;
                 try {
                     // take next msg in buffer and write it
                     //this call will block if buffer is empty
-                    next_message = writing_buffer.take();
+                    nextMessage = writingBuffer.take();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                if(next_message == null)
+                if(nextMessage == null)
                     System.err.println("msg is null");
                 else
-                    forwardMessage(next_message);
+                    forwardMessage(nextMessage);
             }
         }
 
-        void forwardMessage(Message msg){
-            if(routingTable.containsKey(msg.getDestination())){
+        void forwardMessage(Message message){
+            if(routingTable.containsKey(message.getDestination())){
                 // we know where to send
                 try {
-                    routingTable.get(msg.getDestination()).writeObject(msg);
+                    // destination = port (for now)
+                    routingTable.get(message.getDestination()).writeObject(message);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
             else{
                 // cry for help
+                System.err.println("Not supported destination");
             }
         }
     }
@@ -98,7 +130,7 @@ public class Node extends Thread{
 
     //utils
     private int port;
-    private int address;
+    private int identification;
     private static long REPORT_TIME = 100;
     private static int BUFF_SIZE = 10;
 
@@ -132,7 +164,7 @@ public class Node extends Thread{
 
         // activate reading thread
         try (Selector selector = Selector.open()){
-            Reader reader = new Reader(selector);
+            Reader reader = new Reader();
             reader.start();
         } catch (IOException e) {
             e.printStackTrace();

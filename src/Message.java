@@ -14,4 +14,25 @@ public class Message implements Serializable {
         this.destination = destination;
         this.content = content;
     }
+
+    public static Message parseMessage(String message){
+
+        //message format for testing
+        String[] tokens = message.split(":");
+        Integer source = Integer.parseInt(tokens[0]);
+        Integer destination = Integer.parseInt(tokens[1]);
+        String content = tokens[2];
+
+        return new Message(source, destination, content);
+    }
+
+    @Override
+    public String toString() {
+        return "Source: " + source + "\tDestination: " + destination + "\tContent: " + content;
+    }
+
+    public static boolean isStringRoutingMessage(String message){
+        //TODO
+        return true;
+    }
 }
