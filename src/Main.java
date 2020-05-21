@@ -11,6 +11,21 @@ import java.util.Vector;
 public class Main {
 
     public static void main(String[] args) {
+        Node.ROUTING_TABLE_FOR_DEMO = new Map[3];
+        Node.ROUTING_TABLE_FOR_DEMO[0] = new HashMap<>();
+        Node.ROUTING_TABLE_FOR_DEMO[0].put(2, 1);
+        Node.ROUTING_TABLE_FOR_DEMO[0].put(1, 0);
+        Node.ROUTING_TABLE_FOR_DEMO[0].put(0, 0);
+
+        Node.ROUTING_TABLE_FOR_DEMO[1] = new HashMap<>();
+        Node.ROUTING_TABLE_FOR_DEMO[1].put(2, 1);
+        Node.ROUTING_TABLE_FOR_DEMO[1].put(1, 0);
+        Node.ROUTING_TABLE_FOR_DEMO[1].put(0, 2);
+
+        Node.ROUTING_TABLE_FOR_DEMO[2] = new HashMap<>();
+        Node.ROUTING_TABLE_FOR_DEMO[2].put(2, 1);
+        Node.ROUTING_TABLE_FOR_DEMO[2].put(1, 0);
+        Node.ROUTING_TABLE_FOR_DEMO[2].put(0, 0);
 
 
         JSONParser parser = new JSONParser();

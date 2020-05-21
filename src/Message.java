@@ -1,6 +1,6 @@
 import java.io.Serializable;
 
-public class Message implements Serializable {
+public class Message{
     private Integer source;
     private Integer destination;
     private String content; // this can change

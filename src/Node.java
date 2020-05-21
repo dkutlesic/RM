@@ -14,7 +14,6 @@ import java.util.concurrent.BlockingQueue;
 public class Node extends Thread{
 
     private class Reader extends Thread{
-        ServerSocketChannel serverSocketChannel;
 
         public Reader() {
             // selector to deal with multiple input channels
@@ -22,8 +21,13 @@ public class Node extends Thread{
 
         @Override
         public void run() {
-            try(Selector selector = Selector.open()){
-                serverSocketChannel = ServerSocketChannel.open();
+            try(Selector selector = Selector.open();
+                ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()){
+
+                if(selector == null || serverSocketChannel == null){
+                    System.err.println("well what can you do :/");
+                }
+
                 serverSocketChannel.bind(new InetSocketAddress(port));
                 serverSocketChannel.configureBlocking(false);
                 serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT );
@@ -36,13 +40,18 @@ public class Node extends Thread{
                         selectionKeyIterator.remove();
 
                         if (key.isAcceptable()) {
+
                             ServerSocketChannel server = (ServerSocketChannel) key.channel();
 
-                            // treba zapamtiti klijenta da mozemo da mu prosledjujemo poruke kad treba
                             SocketChannel client = server.accept();
+
                             System.out.println(identification + ": Accepted connection");
+
+                            socketTable.put(identification, client.socket());
+
                             client.configureBlocking(false);
                             client.register(selector, SelectionKey.OP_READ);
+
                         } else if (key.isReadable()) {
                             SocketChannel client = (SocketChannel) key.channel();
 
@@ -51,21 +60,30 @@ public class Node extends Thread{
                                 byteBuffer = ByteBuffer.allocate(4096);
                                 key.attach(byteBuffer);
                             }
+
                             int bytes_read = client.read(byteBuffer);
+                            if(bytes_read == -1){
+                                byteBuffer.clear();
+                                continue;
+                            }
                             String requestCompleted = new String(byteBuffer.array(), 0, bytes_read);
                             if (requestCompleted.contains("!")) {
                                 Message message = Message.parseMessage(requestCompleted);
 
-                                writer.getWritingBuffer().put(message);
+                                writer.getWritingBuffer().put(message); // this could block should be fixed, we dont want it
 
-                                System.out.println(identification + " : " + message.toString());
-                                key.cancel(); //hacky, maybe change it
+                                System.out.println(identification + " (line 72): " + message.toString());
 
-                            } else{
+
+                            } else {
                                 System.err.println("Not supported message type");
                             }
+
+                            // enable us to read again
+//                            byteBuffer.clear(); // makes hell break loose
+                            key.cancel();  // should delete this
                         } else{
-//                            System.err.println("Not supported key action!");
+                            System.err.println("Not supported key action!");
                         }
                     }
                 }
@@ -114,13 +132,35 @@ public class Node extends Thread{
         void forwardMessage(Message message){
             if(routingTable.containsKey(message.getDestination())){
                 // we know where to send
-                try (PrintWriter out = new PrintWriter(
-                        routingTable.get(message.getDestination()).getOutputStream()
-                )){
-                    out.print(message.sendingFormat());
-                    out.flush();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if(routingTable.get(message.getDestination()) == identification){
+                    // host is directly connected to us
+                    try (PrintWriter out = new PrintWriter(
+                            socketTable.get(
+                                    routingTable.get(message.getDestination())
+                            ).getOutputStream()
+                    )){
+
+                        System.out.println(identification + "|" + message + "| forwarded to: " + routingTable.get(message.getDestination()) );
+                        System.out.println("sending to socket " + socketTable.get(routingTable.get(message.getDestination())));
+                        out.print(message.sendingFormat());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else
+                {
+                    try (PrintWriter out = new PrintWriter(
+                            socketTable.get(
+                                    routingTable.get(message.getDestination())
+                            ).getOutputStream()
+                    )){
+
+                        System.out.println(identification + "|" + message + "| forwarded to: " + routingTable.get(message.getDestination()) );
+                        out.print(message.sendingFormat());
+                        out.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
             else{
@@ -137,14 +177,15 @@ public class Node extends Thread{
 
     //tables
     private Map<Integer, Integer> adjacentNodesTable;
-    private Map<Integer, Socket> routingTable;
+    private Map<Integer, Socket> socketTable;
+    private Map<Integer, Integer> routingTable;
 
     //utils
-    public static int NODE_PORT_OFFSET = 1234; // node i will be connected to port_offset + i port
+    public static final int NODE_PORT_OFFSET = 1234; // node i will be connected to port_offset + i port
     private int port;
     private int identification;
-    private static long REPORT_TIME = 100;
-    private static int BUFF_SIZE = 10;
+    private static final long REPORT_TIME = 100;
+    private static final int BUFF_SIZE = 10;
 
     public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;
 
@@ -156,7 +197,8 @@ public class Node extends Thread{
         this.receivedPacketsNumber = 0;
         this.transmissionsNumber = 0;
         this.adjacentNodesTable = new HashMap<>(adjacentNodesTable);
-        this.routingTable = new HashMap<>();
+        this.socketTable = new HashMap<>();
+        this.routingTable = new HashMap<>(Node.ROUTING_TABLE_FOR_DEMO[identification]);
         this.port = id + NODE_PORT_OFFSET;
         this.identification = id;
     }
@@ -199,14 +241,17 @@ public class Node extends Thread{
 
         adjacentNodesTable.forEach((p, l) -> {
             try {
-                System.out.println("connecting to:" + p);
+                System.out.println("Node" + identification + " connecting to:" + p);
                 Socket s = new Socket("localhost", p);
-                // this socket should be put in routing table, cant find good way to do it for testing
-//                routingTable.put(Node.ROUTING_TABLE_FOR_DEMO[identification].get(p - Node.NODE_PORT_OFFSET) , s);
+                socketTable.put(p - Node.NODE_PORT_OFFSET, s);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
+
+        System.out.println("routing table for " + identification + " " + routingTable);
+
+        System.out.println("adjacency table for " + identification + " " + adjacentNodesTable);
 
 
 
