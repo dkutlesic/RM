@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -9,12 +10,10 @@ import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.function.ToDoubleBiFunction;
 
 public class Node extends Thread{
 
     private class Reader extends Thread{
-        Selector selector;
         ServerSocketChannel serverSocketChannel;
 
         public Reader() {
@@ -23,11 +22,11 @@ public class Node extends Thread{
 
         @Override
         public void run() {
-            try{
+            try(Selector selector = Selector.open()){
                 serverSocketChannel = ServerSocketChannel.open();
                 serverSocketChannel.bind(new InetSocketAddress(port));
                 serverSocketChannel.configureBlocking(false);
-                serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+                serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT );
 
                 while(true) {
                     selector.select();
@@ -38,6 +37,8 @@ public class Node extends Thread{
 
                         if (key.isAcceptable()) {
                             ServerSocketChannel server = (ServerSocketChannel) key.channel();
+
+                            // treba zapamtiti klijenta da mozemo da mu prosledjujemo poruke kad treba
                             SocketChannel client = server.accept();
                             System.out.println(identification + ": Accepted connection");
                             client.configureBlocking(false);
@@ -50,20 +51,25 @@ public class Node extends Thread{
                                 byteBuffer = ByteBuffer.allocate(4096);
                                 key.attach(byteBuffer);
                             }
-                            client.read(byteBuffer);
-                            String requestCompleted = new String(byteBuffer.array());
+                            int bytes_read = client.read(byteBuffer);
+                            String requestCompleted = new String(byteBuffer.array(), 0, bytes_read);
                             if (requestCompleted.contains("!")) {
                                 Message message = Message.parseMessage(requestCompleted);
+
+                                writer.getWritingBuffer().put(message);
+
                                 System.out.println(identification + " : " + message.toString());
                                 key.cancel(); //hacky, maybe change it
 
-                            } else
+                            } else{
                                 System.err.println("Not supported message type");
-                        } else
-                            System.err.println("Not supported key action!");
+                            }
+                        } else{
+//                            System.err.println("Not supported key action!");
+                        }
                     }
                 }
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
         }
@@ -81,6 +87,10 @@ public class Node extends Thread{
 
         public Writer() {
             writingBuffer = new ArrayBlockingQueue<>(BUFF_SIZE);
+        }
+
+        public BlockingQueue<Message> getWritingBuffer() {
+            return writingBuffer;
         }
 
         @Override
@@ -104,11 +114,11 @@ public class Node extends Thread{
         void forwardMessage(Message message){
             if(routingTable.containsKey(message.getDestination())){
                 // we know where to send
-                try {
-                    // destination = port (for now)
-                    PrintWriter out = new PrintWriter(routingTable.get(message.getDestination()).getOutputStream(), true);
-                    out.write(message.toString());
-
+                try (PrintWriter out = new PrintWriter(
+                        routingTable.get(message.getDestination()).getOutputStream()
+                )){
+                    out.print(message.sendingFormat());
+                    out.flush();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -126,22 +136,29 @@ public class Node extends Thread{
     private long transmissionsNumber;
 
     //tables
-    private Vector<Vector<Integer>> adjacentNodesTable;
-    private Map<Integer, Socket> routingTable; // hack to get first thing working
-                                                            // this should be done smarter
+    private Map<Integer, Integer> adjacentNodesTable;
+    private Map<Integer, Socket> routingTable;
 
     //utils
+    public static int NODE_PORT_OFFSET = 1234; // node i will be connected to port_offset + i port
     private int port;
     private int identification;
     private static long REPORT_TIME = 100;
     private static int BUFF_SIZE = 10;
 
-    public Node(Vector<Vector<Integer>> adjacentNodesTable) {
+    public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;
+
+    private Writer writer;
+    private Reader reader;
+
+    public Node(Map<Integer, Integer> adjacentNodesTable, int id) {
         this.sentPacketsNumber = 0;
         this.receivedPacketsNumber = 0;
         this.transmissionsNumber = 0;
-        this.adjacentNodesTable = new Vector<>(adjacentNodesTable);
+        this.adjacentNodesTable = new HashMap<>(adjacentNodesTable);
         this.routingTable = new HashMap<>();
+        this.port = id + NODE_PORT_OFFSET;
+        this.identification = id;
     }
 
     public void updateAdjacentNodesTable(Vector<Vector<Integer>> adjacentNodesTable){
@@ -153,35 +170,56 @@ public class Node extends Thread{
         // send ping to all neighbours that we are alive and well
     }
 
-    private void chechkNeighbours(){
+    private void checkNeighbours(){
         // TODO
         // look what links haven't spoken with us in a while
     }
 
     @Override
     public void run() {
+        System.out.println(port);
+
         // activate writing thread
-        Writer writer = this.new Writer();
+        writer = this.new Writer();
         writer.start();
 
         // activate reading thread
-        try (Selector selector = Selector.open()){
-            Reader reader = new Reader();
-            reader.start();
-        } catch (IOException e) {
+        reader = new Reader();
+        reader.start();
+
+        // this part is terrible hacking because i am not sure how can we
+        // guarantee that we can connect to socket in adjacentNodesTable
+        // we wait for 1 second and all the sockets SHOULD be active
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
-        while(true){
-            // periodically tell our dear neighbours we are alive and well
-            // also while we are at it check for their health
+        adjacentNodesTable.forEach((p, l) -> {
             try {
-                Thread.sleep(REPORT_TIME);
-            } catch (InterruptedException e) {
+                System.out.println("connecting to:" + p);
+                Socket s = new Socket("localhost", p);
+                // this socket should be put in routing table, cant find good way to do it for testing
+//                routingTable.put(Node.ROUTING_TABLE_FOR_DEMO[identification].get(p - Node.NODE_PORT_OFFSET) , s);
+            } catch (IOException e) {
                 e.printStackTrace();
             }
-            reportToNeighbours();
-            chechkNeighbours();
-        }
+        });
+
+
+
+//        while(true){
+//            // periodically tell our dear neighbours we are alive and well
+//            // also while we are at it check for their health
+//            try {
+//                Thread.sleep(REPORT_TIME);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//            reportToNeighbours();
+//            checkNeighbours();
+//        }
     }
 }
