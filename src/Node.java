@@ -1,7 +1,6 @@
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -10,6 +9,7 @@ import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Node extends Thread{
 
@@ -179,6 +179,7 @@ public class Node extends Thread{
     private Map<Integer, Integer> adjacentNodesTable;
     private Map<Integer, Socket> socketTable;
     private Map<Integer, Integer> routingTable;
+    private Map<Integer, Vector<Integer>> FloodingTable;
 
     //utils
     public static final int NODE_PORT_OFFSET = 1234; // node i will be connected to port_offset + i port
@@ -199,6 +200,7 @@ public class Node extends Thread{
         this.adjacentNodesTable = new HashMap<>(adjacentNodesTable);
         this.socketTable = new HashMap<>();
         this.routingTable = new HashMap<>(Node.ROUTING_TABLE_FOR_DEMO[identification]);
+        this.FloodingTable = new HashMap<>();
         this.port = id + NODE_PORT_OFFSET;
         this.identification = id;
     }
@@ -267,4 +269,32 @@ public class Node extends Thread{
 //            checkNeighbours();
 //        }
     }
+
+
+    public void floodNeighbors(Message message, Writer writer){
+        Integer source = message.getSource();
+        Integer messageId = message.getFloodingId();
+
+        //maybe switch map to (messageId, vector of sources)
+        // in order to have less collisions
+        if (!FloodingTable.containsKey(source)){
+            FloodingTable.put(source, new Vector<Integer>(messageId));
+            adjacentNodesTable.forEach((neighbor, distance) ->
+                    writer.forwardMessage(message.getFloodingFormatNextDestination(neighbor))
+            );
+        }
+        else {
+            if(!FloodingTable.get(source).contains(messageId)){
+                FloodingTable.get(source).add(messageId);
+                adjacentNodesTable.forEach((neighbor, distance) ->
+                        writer.forwardMessage(message.getFloodingFormatNextDestination(neighbor))
+                );
+            }
+
+            //else
+            // we've seen the message so we don't have to flood it again
+        }
+
+    }
+
 }

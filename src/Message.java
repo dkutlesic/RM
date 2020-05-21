@@ -8,6 +8,8 @@ public class Message{
     public Integer getDestination() {
         return destination;
     }
+    public String getContent() { return content; }
+    public Integer getSource() { return source; }
 
     public Message(Integer source, Integer destination, String content) {
         this.source = source;
@@ -38,5 +40,15 @@ public class Message{
     public static boolean isStringRoutingMessage(String message){
         //TODO
         return true;
+    }
+
+    public Integer getFloodingId() {
+        // content: messageId$...
+        String tokens[] = content.split("$");
+        return Integer.parseInt(tokens[0]);
+    }
+
+    public Message getFloodingFormatNextDestination(Integer neighbor) {
+        return new Message(this.source, neighbor, this.content);
     }
 }
