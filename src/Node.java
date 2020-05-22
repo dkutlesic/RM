@@ -271,7 +271,7 @@ public class Node extends Thread{
     }
 
 
-    public void floodNeighbors(Message message, Writer writer){
+    public void floodNeighbors(Message message){
         Integer source = message.getSource();
         Integer messageId = message.getFloodingId();
 
