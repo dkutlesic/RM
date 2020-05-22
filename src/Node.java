@@ -129,7 +129,7 @@ public class Node extends Thread{
             }
         }
 
-        void forwardMessage(Message message){
+        private void forwardMessage(Message message){
             if(routingTable.containsKey(message.getDestination())){
                 // we know where to send
                 if(routingTable.get(message.getDestination()) == identification){
@@ -275,26 +275,29 @@ public class Node extends Thread{
         Integer source = message.getSource();
         Integer messageId = message.getFloodingId();
 
-        //maybe switch map to (messageId, vector of sources)
-        // in order to have less collisions
-        if (!FloodingTable.containsKey(source)){
-            FloodingTable.put(source, new Vector<Integer>(messageId));
-            adjacentNodesTable.forEach((neighbor, distance) ->
-                    writer.forwardMessage(message.getFloodingFormatNextDestination(neighbor))
-            );
-        }
-        else {
-            if(!FloodingTable.get(source).contains(messageId)){
-                FloodingTable.get(source).add(messageId);
-                adjacentNodesTable.forEach((neighbor, distance) ->
-                        writer.forwardMessage(message.getFloodingFormatNextDestination(neighbor))
-                );
+        //Do we need to flood the message
+        if (!FloodingTable.containsKey(messageId) || !FloodingTable.get(messageId).contains(source)){
+            //flooding the message
+            for (Map.Entry<Integer, Integer> entry : adjacentNodesTable.entrySet()) {
+                Integer neighbor = entry.getKey();
+                Integer distance = entry.getValue();
+                try {
+                    writer.getWritingBuffer().put(message);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
 
-            //else
-            // we've seen the message so we don't have to flood it again
+            //remembering the message
+            if(!FloodingTable.containsKey(messageId))
+                FloodingTable.put(messageId, new Vector<>(source));
+            else
+                FloodingTable.get(messageId).add(source);
         }
-
+        //else
+        // we've seen the message so we don't have to flood it again
     }
+
+
 
 }
