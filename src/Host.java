@@ -1,43 +1,14 @@
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 public class Host extends Thread{
 
-    private class Reader extends Thread{
-        private BufferedReader in;
-
-        private static final int BUFFER_SIZE = 4096;
-
-        public Reader(BufferedReader in) {
-            this.in = in;
-        }
-
-        @Override
-        public void run() {
-
-            char[] buffer = new char[BUFFER_SIZE];
-
-            while(true){
-                int bytes_read = 0;
-                try {
-                    bytes_read = in.read(buffer);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                if(bytes_read != 0){
-                    Message msg = Message.parseMessage(buffer.toString().substring(0, bytes_read));
-                    System.out.println(msg);
-                }
-            }
-        }
-    }
-
     private class Writer extends Thread{
         private PrintWriter out;
-
         public Writer(PrintWriter out) {
             this.out = out;
         }
@@ -65,15 +36,16 @@ public class Host extends Thread{
     public static int host_number = 0;
 
     private int id;
-
-    public void connect(int port){
-        //TODO
-    }
+    private int port;
+    private Map<Integer, Socket> socketTable;
 
     public Host() {
         // can be done smarter to avoid concurrency problems here
         id = host_number++;
+        this.socketTable = new HashMap<>();
     }
+
+    public void setPort(int port) { this.port = port; }
 
     public void forwardMessage(Message message){
 
@@ -90,8 +62,12 @@ public class Host extends Thread{
 
         System.out.println("Select router: ");
         int router_id = scanner.nextInt();
+        int port = router_id + Node.NODE_PORT_OFFSET;
+        setPort(port);
 
-        try(Socket socket = new Socket("localhost", router_id + Node.NODE_PORT_OFFSET);
+        HostReader reader = new HostReader(port, id, this.socketTable);
+
+        try(Socket socket = new Socket("localhost", port);
             PrintWriter out = new PrintWriter(
                     socket.getOutputStream()
                 );
@@ -101,7 +77,6 @@ public class Host extends Thread{
                     )
             )
         ) {
-            Reader reader = new Reader(in);
             reader.start();
 
             Writer writer = new Writer(out);

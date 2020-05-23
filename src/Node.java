@@ -7,169 +7,8 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Node extends Thread{
-
-    private class Reader extends Thread{
-
-        public Reader() {
-            // selector to deal with multiple input channels
-        }
-
-        @Override
-        public void run() {
-            try(Selector selector = Selector.open();
-                ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()){
-
-                if(selector == null || serverSocketChannel == null){
-                    System.err.println("well what can you do :/");
-                }
-
-                serverSocketChannel.bind(new InetSocketAddress(port));
-                serverSocketChannel.configureBlocking(false);
-                serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT );
-
-                while(true) {
-                    selector.select();
-                    Iterator<SelectionKey> selectionKeyIterator = selector.selectedKeys().iterator();
-                    while (selectionKeyIterator.hasNext()) {
-                        SelectionKey key = selectionKeyIterator.next();
-                        selectionKeyIterator.remove();
-
-                        if (key.isAcceptable()) {
-
-                            ServerSocketChannel server = (ServerSocketChannel) key.channel();
-
-                            SocketChannel client = server.accept();
-
-                            System.out.println(identification + ": Accepted connection");
-
-                            socketTable.put(identification, client.socket());
-
-                            client.configureBlocking(false);
-                            client.register(selector, SelectionKey.OP_READ);
-
-                        } else if (key.isReadable()) {
-                            SocketChannel client = (SocketChannel) key.channel();
-
-                            ByteBuffer byteBuffer = (ByteBuffer) key.attachment();
-                            if (byteBuffer == null) {
-                                byteBuffer = ByteBuffer.allocate(4096);
-                                key.attach(byteBuffer);
-                            }
-
-                            int bytes_read = client.read(byteBuffer);
-                            if(bytes_read == -1){
-                                byteBuffer.clear();
-                                continue;
-                            }
-                            String requestCompleted = new String(byteBuffer.array(), 0, bytes_read);
-                            if (requestCompleted.contains("!")) {
-                                Message message = Message.parseMessage(requestCompleted);
-
-                                writer.getWritingBuffer().put(message); // this could block should be fixed, we dont want it
-
-                                System.out.println(identification + " (line 72): " + message.toString());
-
-
-                            } else {
-                                System.err.println("Not supported message type");
-                            }
-
-                            // enable us to read again
-//                            byteBuffer.clear(); // makes hell break loose
-                            key.cancel();  // should delete this
-                        } else{
-                            System.err.println("Not supported key action!");
-                        }
-                    }
-                }
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        private void readFromKey(SelectionKey key) {
-            SocketChannel socketChannel = (SocketChannel) key.channel();
-
-        }
-    }
-
-    private class Writer extends Thread{
-
-
-        BlockingQueue<Message> writingBuffer;
-
-        public Writer() {
-            writingBuffer = new ArrayBlockingQueue<>(BUFF_SIZE);
-        }
-
-        public BlockingQueue<Message> getWritingBuffer() {
-            return writingBuffer;
-        }
-
-        @Override
-        public void run() {
-            while(true){
-                Message nextMessage = null;
-                try {
-                    // take next msg in buffer and write it
-                    //this call will block if buffer is empty
-                    nextMessage = writingBuffer.take();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                if(nextMessage == null)
-                    System.err.println("msg is null");
-                else
-                    forwardMessage(nextMessage);
-            }
-        }
-
-        private void forwardMessage(Message message){
-            if(routingTable.containsKey(message.getDestination())){
-                // we know where to send
-                if(routingTable.get(message.getDestination()) == identification){
-                    // host is directly connected to us
-                    try (PrintWriter out = new PrintWriter(
-                            socketTable.get(
-                                    routingTable.get(message.getDestination())
-                            ).getOutputStream()
-                    )){
-
-                        System.out.println(identification + "|" + message + "| forwarded to: " + routingTable.get(message.getDestination()) );
-                        System.out.println("sending to socket " + socketTable.get(routingTable.get(message.getDestination())));
-                        out.print(message.sendingFormat());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-                else
-                {
-                    try (PrintWriter out = new PrintWriter(
-                            socketTable.get(
-                                    routingTable.get(message.getDestination())
-                            ).getOutputStream()
-                    )){
-
-                        System.out.println(identification + "|" + message + "| forwarded to: " + routingTable.get(message.getDestination()) );
-                        out.print(message.sendingFormat());
-                        out.flush();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-            else{
-                // cry for help
-                System.err.println("Not supported destination");
-            }
-        }
-    }
-
     //statistics
     private long sentPacketsNumber;
     private long receivedPacketsNumber;
@@ -186,12 +25,11 @@ public class Node extends Thread{
     private int port;
     private int identification;
     private static final long REPORT_TIME = 100;
-    private static final int BUFF_SIZE = 10;
 
     public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;
 
-    private Writer writer;
-    private Reader reader;
+    private NodeWriter nodeWriter;
+    private NodeReader reader;
 
     public Node(Map<Integer, Integer> adjacentNodesTable, int id) {
         this.sentPacketsNumber = 0;
@@ -224,11 +62,11 @@ public class Node extends Thread{
         System.out.println(port);
 
         // activate writing thread
-        writer = this.new Writer();
-        writer.start();
+        nodeWriter = new NodeWriter(this.identification, this.socketTable, this.routingTable);
+        nodeWriter.start();
 
         // activate reading thread
-        reader = new Reader();
+        reader = new NodeReader(this.port, this.identification, this.socketTable, this.nodeWriter);
         reader.start();
 
         // this part is terrible hacking because i am not sure how can we
@@ -282,7 +120,7 @@ public class Node extends Thread{
                 Integer neighbor = entry.getKey();
                 Integer distance = entry.getValue();
                 try {
-                    writer.getWritingBuffer().put(message);
+                    nodeWriter.getWritingBuffer().put(message);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -290,7 +128,7 @@ public class Node extends Thread{
 
             //remembering the message
             if(!FloodingTable.containsKey(messageId))
-                FloodingTable.put(messageId, new Vector<>(source));
+                FloodingTable.put(messageId, new Vector<Integer>(source));
             else
                 FloodingTable.get(messageId).add(source);
         }
