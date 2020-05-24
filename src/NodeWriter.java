@@ -74,10 +74,8 @@ public class NodeWriter extends Thread{
                 // host is directly connected to us
                 System.out.println(message.getDestination());
                 System.out.println(socketTable.get(message.getDestination()));
-                try (PrintWriter out = new PrintWriter(
-                        socketTable.get(message.getDestination()).getOutputStream()
-                )){
-
+                try {
+                    PrintWriter out = new PrintWriter(socketTable.get(message.getDestination()).getOutputStream());
                     System.out.println(identification + "|" + message + "| forwarded to: " + routingTable.get(message.getDestination()) );
                     System.out.println("sending to socket " + socketTable.get(routingTable.get(message.getDestination())));
                     out.print(message.sendingFormat());
@@ -88,12 +86,8 @@ public class NodeWriter extends Thread{
             }
             else
             {
-                try (PrintWriter out = new PrintWriter(
-                        socketTable.get(
-                                routingTable.get(message.getDestination())
-                        ).getOutputStream()
-                )){
-
+                try {
+                     PrintWriter out = new PrintWriter(socketTable.get(routingTable.get(message.getDestination())).getOutputStream());
                     System.out.println(identification + "|" + message + "| forwarded to: " + routingTable.get(message.getDestination()) );
                     out.print(message.sendingFormat());
                     out.flush();
