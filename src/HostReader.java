@@ -8,6 +8,6 @@ public class HostReader extends Reader{
 
     @Override
     public void processMessage(Message message) {
-
+        System.out.println(message);
     }
 }

@@ -12,6 +12,7 @@ public class NodeReader extends Reader {
 
     @Override
     public void processMessage(Message message) {
+
         try {
             nodeWriter.getWritingBuffer().put(message); // this could block should be fixed, we dont want it
         } catch (InterruptedException e) {

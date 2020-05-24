@@ -15,44 +15,46 @@ public class Host extends Thread{
 
         @Override
         public void run() {
+            ConnectionMessage conn_msg = new ConnectionMessage(port, id);
+            out.write(conn_msg.sendingFormat());
+            out.flush();
+            System.out.println("Connection msg sent!");
+
             Scanner scanner = new Scanner(System.in);
             while(true){
                 System.out.println("Enter receiver id: ");
                 int receiver = scanner.nextInt();
                 scanner.nextLine();
-                System.out.println("reciver = " + receiver);
                 System.out.println("Enter msg:");
                 String msg = scanner.nextLine();
-
                 if(msg.trim() == "stop")
                     break;
 
-                out.write(new Message(id, receiver, msg).sendingFormat());
+                out.write(new TextMessage(id, receiver, msg).sendingFormat());
                 out.flush();
             }
         }
     }
 
-    public static int host_number = 0;
+    public static final int HOST_PORT_OFFSET = 4000;
+    private static int host_number = 0;
 
     private int id;
     private int port;
     private Map<Integer, Socket> socketTable;
 
-    public Host() {
-        // can be done smarter to avoid concurrency problems here
-        id = host_number++;
+    public Host(int id) {
+        this.id = id;
+        this.port = id + Host.HOST_PORT_OFFSET;
         this.socketTable = new HashMap<>();
     }
 
     public void setPort(int port) { this.port = port; }
 
-    public void forwardMessage(Message message){
-
-    }
-
     public static void main(String[] args) {
-        Host host = new Host();
+        Scanner scanner = new Scanner(System.in);
+        int id = scanner.nextInt();
+        Host host = new Host(id);
         host.start();
     }
 
@@ -62,20 +64,14 @@ public class Host extends Thread{
 
         System.out.println("Select router: ");
         int router_id = scanner.nextInt();
-        int port = router_id + Node.NODE_PORT_OFFSET;
-        setPort(port);
+        int router_port = router_id + Node.NODE_PORT_OFFSET;
 
         HostReader reader = new HostReader(port, id, this.socketTable);
 
-        try(Socket socket = new Socket("localhost", port);
+        try(Socket socket = new Socket("localhost", router_port);
             PrintWriter out = new PrintWriter(
                     socket.getOutputStream()
                 );
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(
-                            socket.getInputStream()
-                    )
-            )
         ) {
             reader.start();
 

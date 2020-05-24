@@ -16,6 +16,7 @@ abstract public class Reader extends Thread {
     private Map<Integer, Socket> socketTable;
 
     public Reader(int port, int identification, Map<Integer, Socket> socketTable){
+        System.out.println("port: " + port);
         this.port = port;
         this.identification = identification;
         this.socketTable = socketTable;
@@ -70,9 +71,8 @@ abstract public class Reader extends Thread {
                             continue;
                         }
                         String requestCompleted = new String(byteBuffer.array(), 0, bytes_read);
-                        if (requestCompleted.contains("!")) {
+                        if (requestCompleted.endsWith("!")) {
                             Message message = Message.parseMessage(requestCompleted);
-
                             processMessage(message);
 
                             System.out.println(identification + " (line 72): " + message.toString());
@@ -83,8 +83,8 @@ abstract public class Reader extends Thread {
                         }
 
                         // enable us to read again
-//                            byteBuffer.clear(); // makes hell break loose
-                        key.cancel();  // should delete this
+                        byteBuffer.clear(); // makes hell break loose
+//                        key.cancel();  // should delete this
                     } else{
                         System.err.println("Not supported key action!");
                     }

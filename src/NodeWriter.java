@@ -39,25 +39,49 @@ public class NodeWriter extends Thread{
             }
             if(nextMessage == null)
                 System.err.println("msg is null");
-            else
-                forwardMessage(nextMessage);
+            else{
+                switch (nextMessage.getType()){
+                    case TEXT_MESSAGE:
+                        forwardMessage((TextMessage) nextMessage);
+                        break;
+                    case FLOODING_MESSAGE:
+                        break;
+                    case CONNECTION_MESSAGE:
+                        makeConnection(((ConnectionMessage) nextMessage).getPort(),
+                                ((ConnectionMessage) nextMessage).getId());
+                        break;
+                    default:
+                        System.err.println("UNSUPPORTED MESSAGE TYPE");
+                }
+            }
         }
     }
 
-    private void forwardMessage(Message message){
+    private void makeConnection(int port, int id) {
+        try {
+            socketTable.put(id, new Socket("localhost", port));
+
+            System.out.println("connected to socket" + socketTable.get(id) + " for id " + id);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void forwardMessage(TextMessage message){
         if(routingTable.containsKey(message.getDestination())){
             // we know where to send
             if(routingTable.get(message.getDestination()) == identification){
                 // host is directly connected to us
+                System.out.println(message.getDestination());
+                System.out.println(socketTable.get(message.getDestination()));
                 try (PrintWriter out = new PrintWriter(
-                        socketTable.get(
-                                routingTable.get(message.getDestination())
-                        ).getOutputStream()
+                        socketTable.get(message.getDestination()).getOutputStream()
                 )){
 
                     System.out.println(identification + "|" + message + "| forwarded to: " + routingTable.get(message.getDestination()) );
                     System.out.println("sending to socket " + socketTable.get(routingTable.get(message.getDestination())));
                     out.print(message.sendingFormat());
+                    out.flush();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
