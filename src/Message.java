@@ -19,6 +19,7 @@ public  abstract class Message implements Serializable{
     enum types{
         TEXT_MESSAGE,
         FLOODING_MESSAGE,
-        CONNECTION_MESSAGE
+        CONNECTION_MESSAGE,
+        DISTANCE_VECTOR_ROUTING_MESSAGE
     }
 }

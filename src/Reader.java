@@ -75,9 +75,6 @@ abstract public class Reader extends Thread {
                             Message message = Message.parseMessage(requestCompleted);
                             processMessage(message);
 
-                            System.out.println(identification + " (line 72): " + message.toString());
-
-
                         } else {
                             System.err.println("Not supported message type");
                         }

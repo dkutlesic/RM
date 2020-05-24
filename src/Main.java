@@ -6,6 +6,7 @@ import org.json.simple.parser.ParseException;
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Vector;
 
 public class Main {
@@ -78,8 +79,15 @@ public class Main {
             node.start();
         }
 
+        Scanner scanner = new Scanner(System.in);
 
+        scanner.nextLine();
 
+        try {
+            nodes.get(0).getNodeWriter().getWritingBuffer().put(new FloodingMessage(0,0, ":):)"));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 //        try {
 //            while(true) {
 //                Thread.sleep(60 * 1000);

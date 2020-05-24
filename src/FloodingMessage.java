@@ -1,20 +1,52 @@
-public class FloodingMessage extends Message {
+import java.util.Map;
+import java.util.Vector;
 
-    public int getSource(){
-        return 0;
+public class FloodingMessage extends Message {
+    
+    private int source; // direct sender
+    private int id; // id of message
+    private Map<Integer, Integer> adjacentNodesTable; // adjacentNodesTable from original sender
+    private int originalSender;
+
+    public int getOriginalSender() {
+        return originalSender;
     }
 
-    public Message getFloodingFormatNextDestination(Integer neighbour){
-        return null;
+    public FloodingMessage(int source, int id, int originalSender, Map<Integer, Integer> adjacentNodesTable){
+        this.source = source;
+        this.id = id;
+        this.originalSender = originalSender;
+        this.adjacentNodesTable = adjacentNodesTable;
+    }
+
+    public int getSource(){
+        return source;
+    }
+
+    public Map<Integer, Integer> getAdjacentNodesTable() {
+        return adjacentNodesTable;
+    }
+
+    public FloodingMessage copyForSending(int source){
+        return new FloodingMessage(source, id, originalSender,adjacentNodesTable);
     }
 
     public int getFloodingId(){
-        return 0;
+        return id;
     }
 
 
     @Override
     public types getType() {
         return types.FLOODING_MESSAGE;
+    }
+
+    @Override
+    public String toString() {
+        return "FloodingMessage{" +
+                "source=" + source +
+                ", id=" + id +
+                ", adjacentNodesTable=" + adjacentNodesTable +
+                '}';
     }
 }

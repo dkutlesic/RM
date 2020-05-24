@@ -1,18 +1,18 @@
 import java.io.*;
-import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 public class Node extends Thread{
     //statistics
     private long sentPacketsNumber;
     private long receivedPacketsNumber;
     private long transmissionsNumber;
+
+    public NodeWriter getNodeWriter() {
+        return nodeWriter;
+    }
 
     //tables
     private Map<Integer, Integer> adjacentNodesTable;
@@ -62,11 +62,11 @@ public class Node extends Thread{
         System.out.println(port);
 
         // activate writing thread
-        nodeWriter = new NodeWriter(this.identification, this.socketTable, this.routingTable);
+        nodeWriter = new NodeWriter(this.identification);
         nodeWriter.start();
 
         // activate reading thread
-        reader = new NodeReader(this.port, this.identification, this.socketTable, this.nodeWriter);
+        reader = new NodeReader(this.port, this.identification, this.nodeWriter);
         reader.start();
 
         // this part is terrible hacking because i am not sure how can we
@@ -106,36 +106,161 @@ public class Node extends Thread{
 //            reportToNeighbours();
 //            checkNeighbours();
 //        }
+
     }
 
 
-//    public void floodNeighbors(Message message){
-//        Integer source = message.getSource();
-//        Integer messageId = message.getFloodingId();
-//
-//        //Do we need to flood the message
-//        if (!FloodingTable.containsKey(messageId) || !FloodingTable.get(messageId).contains(source)){
-//            //flooding the message
-//            for (Map.Entry<Integer, Integer> entry : adjacentNodesTable.entrySet()) {
-//                Integer neighbor = entry.getKey();
-//                Integer distance = entry.getValue();
-//                try {
-//                    nodeWriter.getWritingBuffer().put(message);
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//
-//            //remembering the message
-//            if(!FloodingTable.containsKey(messageId))
-//                FloodingTable.put(messageId, new Vector<Integer>(source));
-//            else
-//                FloodingTable.get(messageId).add(source);
-//        }
-//        //else
-//        // we've seen the message so we don't have to flood it again
-//    }
+
+    private class NodeReader extends Reader {
+
+        private NodeWriter nodeWriter;
+
+        public NodeReader(int port, int identification,  NodeWriter nodeWriter) {
+            super(port, identification, socketTable);
+            this.nodeWriter = nodeWriter;
+        }
+
+        @Override
+        public void processMessage(Message message) {
+
+            try {
+                nodeWriter.getWritingBuffer().put(message); // this could block should be fixed, we dont want it
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public class NodeWriter extends Thread{
+
+        private static final int BUFF_SIZE = 10;
+
+        public int identification;
+        private BlockingQueue<Message> writingBuffer;
+        private Set<Integer> floodingMessages = new HashSet<>();
 
 
+        public NodeWriter(int identification) {
+            this.identification = identification;
+            writingBuffer = new ArrayBlockingQueue<>(BUFF_SIZE);
+        }
 
+        public BlockingQueue<Message> getWritingBuffer() {
+            return writingBuffer;
+        }
+
+        @Override
+        public void run() {
+            while(true){
+                Message nextMessage = null;
+                try {
+                    // take next msg in buffer and write it
+                    //this call will block if buffer is empty
+                    nextMessage = writingBuffer.take();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if(nextMessage == null)
+                    System.err.println("msg is null");
+                else{
+                    switch (nextMessage.getType()){
+                        case TEXT_MESSAGE:
+                            forwardMessage((TextMessage) nextMessage);
+                            break;
+                        case FLOODING_MESSAGE:
+                            floodMessage((FloodingMessage) nextMessage);
+                            break;
+                        case CONNECTION_MESSAGE:
+                            makeConnection(((ConnectionMessage) nextMessage).getPort(),
+                                    ((ConnectionMessage) nextMessage).getId());
+                            break;
+                        case DISTANCE_VECTOR_ROUTING_MESSAGE:
+    //                        handle_distance_vector((DistanceVectorRoutingMessage) message);
+                            break;
+                        default:
+                            System.err.println("UNSUPPORTED MESSAGE TYPE");
+                    }
+                }
+            }
+        }
+
+        private void floodMessage(FloodingMessage message){
+            if(! floodingMessages.contains(message.getFloodingId())){
+                // we never sent (or seen for that matter) this message
+
+                floodingMessages.add(message.getFloodingId());
+
+                FloodingMessage forwardingMessage = message.copyForSending(this.identification);
+
+                adjacentNodesTable.forEach((router_id, length) -> {
+                    if(router_id != message.getSource()){
+                        if(socketTable.containsKey(router_id - Node.NODE_PORT_OFFSET)){
+                            try {
+                                PrintWriter out = new PrintWriter(
+                                        socketTable.get(router_id - NODE_PORT_OFFSET).getOutputStream()
+                                );
+                                out.write(forwardingMessage.sendingFormat());
+                                out.flush();
+
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        else{
+                            System.err.println("UNKNOWN SOCKET FOR NODE " + router_id);
+                        }
+                    }
+                });
+
+                Map<Integer, Integer> senderAdjacentNodesTable = message.getAdjacentNodesTable();
+                int sender = message.getOriginalSender();
+                // update topology
+            }
+        }
+
+        private void makeConnection(int port, int id) {
+            try {
+                socketTable.put(id, new Socket("localhost", port));
+
+                System.out.println("connected to socket" + socketTable.get(id) + " for id " + id);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void forwardMessage(TextMessage message){
+            if(routingTable.containsKey(message.getDestination())){
+                // we know where to send
+                if(routingTable.get(message.getDestination()) == identification){
+                    // host is directly connected to us if routing table point to us
+                    try {
+                        // in socketTable we can get socket connected to destination
+                        PrintWriter out = new PrintWriter(socketTable.get(message.getDestination()).getOutputStream());
+                        out.print(message.sendingFormat());
+                        out.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else
+                {
+                    // here we know that routing table entry is pointing us toward next router
+                    // socket for next router is located in socketTable
+                    try {
+                         PrintWriter out = new PrintWriter(
+                                 socketTable.get(routingTable.get(message.getDestination())).getOutputStream()
+                            );
+                        out.print(message.sendingFormat());
+                        out.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            else{
+                // cry for help
+                System.err.println("Not supported destination");
+            }
+        }
+    }
 }
