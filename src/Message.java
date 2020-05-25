@@ -20,6 +20,7 @@ public  abstract class Message implements Serializable{
         TEXT_MESSAGE,
         FLOODING_MESSAGE,
         CONNECTION_MESSAGE,
-        DISTANCE_VECTOR_ROUTING_MESSAGE
+        DISTANCE_VECTOR_ROUTING_MESSAGE,
+        PING_MESSAGE
     }
 }

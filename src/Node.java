@@ -18,7 +18,6 @@ public class Node extends Thread{
     private Map<Integer, Integer> adjacentNodesTable;
     private Map<Integer, Socket> socketTable;
     private Map<Integer, Integer> routingTable;
-    private Map<Integer, Vector<Integer>> FloodingTable;
 
     //utils
     public static final int NODE_PORT_OFFSET = 1234; // node i will be connected to port_offset + i port
@@ -30,6 +29,7 @@ public class Node extends Thread{
 
     private NodeWriter nodeWriter;
     private NodeReader reader;
+    private Set<Integer> liveNeighbors; //FIXME every time we receive ping message, add message source to the liveNeighbors set
 
     public Node(Map<Integer, Integer> adjacentNodesTable, int id) {
         this.sentPacketsNumber = 0;
@@ -38,24 +38,25 @@ public class Node extends Thread{
         this.adjacentNodesTable = new HashMap<>(adjacentNodesTable);
         this.socketTable = new HashMap<>();
         this.routingTable = new HashMap<>(Node.ROUTING_TABLE_FOR_DEMO[identification]);
-        this.FloodingTable = new HashMap<>();
+        this.liveNeighbors = new HashSet<>();
         this.port = id + NODE_PORT_OFFSET;
         this.identification = id;
     }
 
-    public void updateAdjacentNodesTable(Vector<Vector<Integer>> adjacentNodesTable){
-        // TODO
+    public void checkNeighbours(){
+        // look what links haven't spoken with us in a while
+        adjacentNodesTable.keySet().retainAll(liveNeighbors);
+        socketTable.keySet().removeAll(liveNeighbors);
+        //FIXME UPDATE ROUTING TABLE
     }
 
     private void reportToNeighbours(){
-        // TODO
         // send ping to all neighbours that we are alive and well
+        adjacentNodesTable.forEach((routerId, distance) -> {
+            nodeWriter.pingMessage(new PingMessage(this.identification), routerId);
+        });
     }
 
-    private void checkNeighbours(){
-        // TODO
-        // look what links haven't spoken with us in a while
-    }
 
     @Override
     public void run() {
@@ -93,19 +94,24 @@ public class Node extends Thread{
 
         System.out.println("adjacency table for " + identification + " " + adjacentNodesTable);
 
+        int cycle = 1;
 
+        while(true){
+            // periodically tell our dear neighbours we are alive and well
+            // also while we are at it check for their health
+            try {
+                Thread.sleep(REPORT_TIME);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            reportToNeighbours();
+            if (cycle % 10 == 0) {
+                checkNeighbours();
+                cycle = 0;
+            }
 
-//        while(true){
-//            // periodically tell our dear neighbours we are alive and well
-//            // also while we are at it check for their health
-//            try {
-//                Thread.sleep(REPORT_TIME);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//            reportToNeighbours();
-//            checkNeighbours();
-//        }
+        }
+
 
     }
 
@@ -124,7 +130,7 @@ public class Node extends Thread{
         public void processMessage(Message message) {
 
             try {
-                nodeWriter.getWritingBuffer().put(message); // this could block should be fixed, we dont want it
+                nodeWriter.getWritingBuffer().put(message); //FIXME this could block should be fixed, we dont want it
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -185,6 +191,12 @@ public class Node extends Thread{
         }
 
         private void floodMessage(FloodingMessage message){
+            //FIXME
+            // think that we need two ids to identify message uniqueness
+            // one for node id of the message source
+            // and the other for messageId
+            // when the node wants to flood new message, it doesn't know which messageIds are not used so far
+            // second option: to statically increment messageId for all nodes, but that is bljaksi
             if(! floodingMessages.contains(message.getFloodingId())){
                 // we never sent (or seen for that matter) this message
 
@@ -260,6 +272,24 @@ public class Node extends Thread{
             else{
                 // cry for help
                 System.err.println("Not supported destination");
+            }
+        }
+
+        public void pingMessage(PingMessage pingMessage, Integer receiverId) {
+            if(socketTable.containsKey(receiverId - Node.NODE_PORT_OFFSET)){
+                try {
+                    PrintWriter out = new PrintWriter(
+                            socketTable.get(receiverId - NODE_PORT_OFFSET).getOutputStream()
+                    );
+                    out.write(pingMessage.sendingFormat());
+                    out.flush();
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            else{
+                System.err.println("UNKNOWN SOCKET FOR NODE " + receiverId);
             }
         }
     }

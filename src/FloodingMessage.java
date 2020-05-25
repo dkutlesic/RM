@@ -8,9 +8,7 @@ public class FloodingMessage extends Message {
     private Map<Integer, Integer> adjacentNodesTable; // adjacentNodesTable from original sender
     private int originalSender;
 
-    public int getOriginalSender() {
-        return originalSender;
-    }
+
 
     public FloodingMessage(int source, int id, int originalSender, Map<Integer, Integer> adjacentNodesTable){
         this.source = source;
@@ -19,22 +17,20 @@ public class FloodingMessage extends Message {
         this.adjacentNodesTable = adjacentNodesTable;
     }
 
-    public int getSource(){
-        return source;
+    public int getSource(){ return source; }
+    public int getOriginalSender() {
+        return originalSender;
     }
-
     public Map<Integer, Integer> getAdjacentNodesTable() {
         return adjacentNodesTable;
+    }
+    public int getFloodingId(){
+        return id;
     }
 
     public FloodingMessage copyForSending(int source){
         return new FloodingMessage(source, id, originalSender,adjacentNodesTable);
     }
-
-    public int getFloodingId(){
-        return id;
-    }
-
 
     @Override
     public types getType() {
