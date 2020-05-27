@@ -29,7 +29,10 @@ public class Node extends Thread{
 
     private NodeWriter nodeWriter;
     private NodeReader reader;
-    private Set<Integer> liveNeighbors; //FIXME every time we receive ping message, add message source to the liveNeighbors set
+    private Set<Integer> liveNeighbors; // FIXME every time we receive ping message, add message source to the liveNeighbors set
+    private List<Integer> DVRlistOfAllNodes;
+    private Map<Integer, Integer> DVRdistancesFromNodes;
+    private Map<Integer, Integer> DVRnextNode;
 
     public Node(Map<Integer, Integer> adjacentNodesTable, int id) {
         this.sentPacketsNumber = 0;
@@ -43,11 +46,31 @@ public class Node extends Thread{
         this.identification = id;
     }
 
+    public Node(Map<Integer, Integer> adjacentNodesTable, int id, Collection<Integer> listOfAllNodes) {
+        this.sentPacketsNumber = 0;
+        this.receivedPacketsNumber = 0;
+        this.transmissionsNumber = 0;
+        this.adjacentNodesTable = new HashMap<>(adjacentNodesTable);
+        this.socketTable = new HashMap<>();
+        this.routingTable = new HashMap<>(Node.ROUTING_TABLE_FOR_DEMO[identification]);
+        this.liveNeighbors = new HashSet<>();
+        this.port = id + NODE_PORT_OFFSET;
+        this.identification = id;
+        this.DVRlistOfAllNodes = new Vector<>(listOfAllNodes);
+        this.DVRdistancesFromNodes = new HashMap<>();
+        this.DVRnextNode = new HashMap<>();
+        this.DVRlistOfAllNodes.forEach(node -> {
+            this.DVRnextNode.put(node, null);
+            this.DVRdistancesFromNodes.put(node, -1);
+        });
+        this.DVRdistancesFromNodes.put(this.identification, 0);
+    }
+
     public void checkNeighbours(){
         // look what links haven't spoken with us in a while
         adjacentNodesTable.keySet().retainAll(liveNeighbors);
         socketTable.keySet().removeAll(liveNeighbors);
-        //FIXME UPDATE ROUTING TABLE
+        // FIXME UPDATE ROUTING TABLE
     }
 
     private void reportToNeighbours(){
@@ -60,62 +83,88 @@ public class Node extends Thread{
 
     @Override
     public void run() {
-        System.out.println(port);
+        try(PrintWriter out = new PrintWriter(
+                new OutputStreamWriter(
+                        new FileOutputStream(
+                            "logs/" + identification + ".txt"
+                        )
+                )
+        )) {
 
-        // activate writing thread
-        nodeWriter = new NodeWriter(this.identification);
-        nodeWriter.start();
+            out.println(port);
+            // activate writing thread
+            nodeWriter = new NodeWriter(this.identification);
+            nodeWriter.start();
 
-        // activate reading thread
-        reader = new NodeReader(this.port, this.identification, this.nodeWriter);
-        reader.start();
+            // activate reading thread
+            reader = new NodeReader(this.port, this.identification, this.nodeWriter);
+            reader.start();
 
-        // this part is terrible hacking because i am not sure how can we
-        // guarantee that we can connect to socket in adjacentNodesTable
-        // we wait for 1 second and all the sockets SHOULD be active
+            // this part is terrible hacking because i am not sure how can we
+            // guarantee that we can connect to socket in adjacentNodesTable
+            // we wait for 1 second and all the sockets SHOULD be active
 
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        adjacentNodesTable.forEach((p, l) -> {
             try {
-                System.out.println("Node" + identification + " connecting to:" + p);
-                Socket s = new Socket("localhost", p);
-                socketTable.put(p - Node.NODE_PORT_OFFSET, s);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-
-        System.out.println("routing table for " + identification + " " + routingTable);
-
-        System.out.println("adjacency table for " + identification + " " + adjacentNodesTable);
-
-        int cycle = 1;
-
-        while(true){
-            // periodically tell our dear neighbours we are alive and well
-            // also while we are at it check for their health
-            try {
-                Thread.sleep(REPORT_TIME);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            reportToNeighbours();
-            if (cycle % 10 == 0) {
-                checkNeighbours();
-                cycle = 0;
+
+            adjacentNodesTable.forEach((p, l) -> {
+                try {
+                    out.println("Node" + identification + " connecting to:" + p);
+                    Socket s = new Socket("localhost", p);
+                    socketTable.put(p - Node.NODE_PORT_OFFSET, s);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+
+            out.println("routing table for " + identification + " " + routingTable);
+
+            out.println("adjacency table for " + identification + " " + adjacentNodesTable);
+
+            int cycle = 1;
+
+            while (true) {
+                try {
+                    Thread.sleep(REPORT_TIME);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                DistanceVectorRoutingMessage message = new DistanceVectorRoutingMessage(DVRdistancesFromNodes, identification);
+                try {
+                    nodeWriter.getWritingBuffer().put(message);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                out.println("===============================================================================");
+                out.println(DVRdistancesFromNodes);
+                out.println(DVRnextNode);
+
             }
 
+            //        while(true){
+            //            // periodically tell our dear neighbours we are alive and well
+            //            // also while we are at it check for their health
+            //            try {
+            //                Thread.sleep(REPORT_TIME);
+            //            } catch (InterruptedException e) {
+            //                e.printStackTrace();
+            //            }
+            //            reportToNeighbours();
+            //            if (cycle % 10 == 0) {
+            //                checkNeighbours();
+            //                cycle = 0;
+            //            }
+            //
+            //        }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
 
 
     }
-
-
 
     private class NodeReader extends Reader {
 
@@ -181,7 +230,9 @@ public class Node extends Thread{
                                     ((ConnectionMessage) nextMessage).getId());
                             break;
                         case DISTANCE_VECTOR_ROUTING_MESSAGE:
-    //                        handle_distance_vector((DistanceVectorRoutingMessage) message);
+                            handleDistanceVector((DistanceVectorRoutingMessage) nextMessage);
+                            break;
+                        case PING_MESSAGE:
                             break;
                         default:
                             System.err.println("UNSUPPORTED MESSAGE TYPE");
@@ -290,6 +341,47 @@ public class Node extends Thread{
             }
             else{
                 System.err.println("UNKNOWN SOCKET FOR NODE " + receiverId);
+            }
+        }
+
+        private void handleDistanceVector(DistanceVectorRoutingMessage message){
+            int source = message.getSource();
+            if(source == identification){
+                // we sent message we should send it to our neighbours
+                adjacentNodesTable.forEach((Integer neighbour, Integer length) -> {
+                    if(socketTable.containsKey(neighbour - Node.NODE_PORT_OFFSET)){
+                        PrintWriter out = null;
+                        try {
+                            out = new PrintWriter(
+                                    socketTable.get(neighbour - Node.NODE_PORT_OFFSET).getOutputStream()
+                            );
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        out.write(message.sendingFormat());
+                        out.flush();
+                    }
+                    else{
+                        System.err.println("UNKNOWN SOCKET FOR NEIGHBOUR");
+                    }
+                });
+            }
+            else {
+                // we got message, we should handle it
+                if (adjacentNodesTable.containsKey(source + Node.NODE_PORT_OFFSET)) {
+                    int distance_from_source = adjacentNodesTable.get(source + Node.NODE_PORT_OFFSET);
+                    message.getDistances().forEach((Integer node, Integer distance) -> {
+                        if (distance >= 0) {
+                            if ( DVRdistancesFromNodes.get(node) < 0 || distance + distance_from_source < DVRdistancesFromNodes.get(node)) {
+                                DVRdistancesFromNodes.put(node, distance + distance_from_source);
+                                DVRnextNode.put(node, source);
+                            }
+                        }
+
+                    });
+                } else {
+                    System.err.println("got packet from unknown node!");
+                }
             }
         }
     }

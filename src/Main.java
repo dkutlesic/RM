@@ -4,10 +4,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.Vector;
+import java.util.*;
 
 public class Main {
 
@@ -32,6 +29,7 @@ public class Main {
         JSONParser parser = new JSONParser();
 
         Vector<Map<Integer, Integer>> tables = null;
+        Set<Integer> seenNodes = new HashSet<>();
 
 
         try(BufferedReader in = new BufferedReader(
@@ -56,6 +54,8 @@ public class Main {
                 if(edge instanceof  JSONObject){
                     int first = ((Long) ((JSONObject) edge).get("1")).intValue();
                     int second = ((Long) ((JSONObject) edge).get("2")).intValue();
+                    seenNodes.add(first);
+                    seenNodes.add(second);
                     int len = ((Long) ((JSONObject) edge).get("len")).intValue();
                     tables.get(first).put(second + Node.NODE_PORT_OFFSET, len);
                     tables.get(second).put(first + Node.NODE_PORT_OFFSET, len);
@@ -73,8 +73,9 @@ public class Main {
 
         // how things should be done
         Vector<Node> nodes = new Vector<>();
+
         for (int i = 0; i < tables.size(); i++) {
-            Node node = new Node(tables.get(i), i);
+            Node node = new Node(tables.get(i), i, seenNodes);
             nodes.add(node);
             node.start();
         }
@@ -83,11 +84,6 @@ public class Main {
 
         scanner.nextLine();
 
-        try {
-            nodes.get(0).getNodeWriter().getWritingBuffer().put(new FloodingMessage(0,0, ":):)"));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
 //        try {
 //            while(true) {
 //                Thread.sleep(60 * 1000);
