@@ -24,12 +24,15 @@ public class Node extends Thread{
     private int port;
     private int identification;
     private static final long REPORT_TIME = 100;
-
+    private Set<Integer> liveNeighbors; // FIXME every time we receive ping message, add message source to the liveNeighbors set
     public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;
 
+    //IO
     private NodeWriter nodeWriter;
     private NodeReader reader;
-    private Set<Integer> liveNeighbors; // FIXME every time we receive ping message, add message source to the liveNeighbors set
+    private Map<Integer, PrintWriter> outStreams = new HashMap<>();
+
+    //DVR
     private List<Integer> DVRlistOfAllNodes;
     private Map<Integer, Integer> DVRdistancesFromNodes;
     private Map<Integer, Integer> DVRnextNode;
@@ -115,6 +118,8 @@ public class Node extends Thread{
                     out.println("Node" + identification + " connecting to:" + p);
                     Socket s = new Socket("localhost", p);
                     socketTable.put(p - Node.NODE_PORT_OFFSET, s);
+                    outStreams.put(p - Node.NODE_PORT_OFFSET, new PrintWriter(s.getOutputStream()));
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -194,7 +199,6 @@ public class Node extends Thread{
         private BlockingQueue<Message> writingBuffer;
         private Set<Integer> floodingMessages = new HashSet<>();
 
-
         public NodeWriter(int identification) {
             this.identification = identification;
             writingBuffer = new ArrayBlockingQueue<>(BUFF_SIZE);
@@ -258,16 +262,9 @@ public class Node extends Thread{
                 adjacentNodesTable.forEach((router_id, length) -> {
                     if(router_id != message.getSource()){
                         if(socketTable.containsKey(router_id - Node.NODE_PORT_OFFSET)){
-                            try {
-                                PrintWriter out = new PrintWriter(
-                                        socketTable.get(router_id - NODE_PORT_OFFSET).getOutputStream()
-                                );
-                                out.write(forwardingMessage.sendingFormat());
-                                out.flush();
-
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
+                            PrintWriter outWriter = outStreams.get(router_id - NODE_PORT_OFFSET);
+                            outWriter.write(forwardingMessage.sendingFormat());
+                            outWriter.flush();
                         }
                         else{
                             System.err.println("UNKNOWN SOCKET FOR NODE " + router_id);
@@ -290,7 +287,9 @@ public class Node extends Thread{
 
         private void makeConnection(int port, int id) {
             try {
-                socketTable.put(id, new Socket("localhost", port));
+                Socket socket = new Socket("localhost", port);
+                socketTable.put(id, socket);
+                outStreams.put(id, new PrintWriter(socket.getOutputStream()));
 
                 System.out.println("connected to socket" + socketTable.get(id) + " for id " + id);
             } catch (IOException e) {
@@ -303,28 +302,18 @@ public class Node extends Thread{
                 // we know where to send
                 if(routingTable.get(message.getDestination()) == identification){
                     // host is directly connected to us if routing table point to us
-                    try {
-                        // in socketTable we can get socket connected to destination
-                        PrintWriter out = new PrintWriter(socketTable.get(message.getDestination()).getOutputStream());
-                        out.print(message.sendingFormat());
-                        out.flush();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    // in outStreams table we can get output-stream for destination
+                    PrintWriter outWriter = outStreams.get(message.getDestination());
+                    outWriter.print(message.sendingFormat());
+                    outWriter.flush();
                 }
                 else
                 {
                     // here we know that routing table entry is pointing us toward next router
                     // socket for next router is located in socketTable
-                    try {
-                         PrintWriter out = new PrintWriter(
-                                 socketTable.get(routingTable.get(message.getDestination())).getOutputStream()
-                            );
-                        out.print(message.sendingFormat());
-                        out.flush();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    PrintWriter outWriter = outStreams.get(routingTable.get(message.getDestination()));
+                    outWriter.print(message.sendingFormat());
+                    outWriter.flush();
                 }
             }
             else{
@@ -335,16 +324,9 @@ public class Node extends Thread{
 
         public void pingMessage(PingMessage pingMessage, Integer receiverId) {
             if(socketTable.containsKey(receiverId - Node.NODE_PORT_OFFSET)){
-                try {
-                    PrintWriter out = new PrintWriter(
-                            socketTable.get(receiverId - NODE_PORT_OFFSET).getOutputStream()
-                    );
-                    out.write(pingMessage.sendingFormat());
-                    out.flush();
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                PrintWriter outWriter = outStreams.get(receiverId - NODE_PORT_OFFSET);
+                outWriter.write(pingMessage.sendingFormat());
+                outWriter.flush();
             }
             else{
                 System.err.println("UNKNOWN SOCKET FOR NODE " + receiverId);
@@ -357,16 +339,9 @@ public class Node extends Thread{
                 // we sent message we should send it to our neighbours
                 adjacentNodesTable.forEach((Integer neighbour, Integer length) -> {
                     if(socketTable.containsKey(neighbour - Node.NODE_PORT_OFFSET)){
-                        PrintWriter out = null;
-                        try {
-                            out = new PrintWriter(
-                                    socketTable.get(neighbour - Node.NODE_PORT_OFFSET).getOutputStream()
-                            );
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        out.write(message.sendingFormat());
-                        out.flush();
+                        PrintWriter outWriter = outStreams.get(neighbour - Node.NODE_PORT_OFFSET);
+                        outWriter.write(message.sendingFormat());
+                        outWriter.flush();
                     }
                     else{
                         System.err.println("UNKNOWN SOCKET FOR NEIGHBOUR");
