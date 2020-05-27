@@ -275,9 +275,16 @@ public class Node extends Thread{
                     }
                 });
 
-                Map<Integer, Integer> senderAdjacentNodesTable = message.getAdjacentNodesTable();
-                int sender = message.getOriginalSender();
-                // update topology
+                if(message instanceof FloodingNewConnection){
+                    int source = message.getOriginalSender();
+                    int newHost = ((FloodingNewConnection) message).getNewHostId();
+                    // update routing table
+                }
+                else if(message instanceof FloodingTopologyMessage){
+                    Map<Integer, Integer> senderAdjacentNodesTable = ((FloodingTopologyMessage) message).getAdjacentNodesTable();
+                    int sender = message.getOriginalSender();
+                    // update topology
+                }
             }
         }
 
