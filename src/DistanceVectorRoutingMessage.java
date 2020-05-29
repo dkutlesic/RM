@@ -22,6 +22,6 @@ public class DistanceVectorRoutingMessage extends Message {
 
     @Override
     public types getType() {
-        return types.DISTANCE_VECTOR_ROUTING_MESSAGE;
+        return types.ROUTING_MESSAGE;
     }
 }
