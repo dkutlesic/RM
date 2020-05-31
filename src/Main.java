@@ -75,7 +75,7 @@ public class Main {
         Vector<Node> nodes = new Vector<>();
 
         for (int i = 0; i < tables.size(); i++) {
-            Node node = new Node(tables.get(i), i, seenNodes);
+            DVRNode node = new DVRNode(tables.get(i), i, seenNodes);
             nodes.add(node);
             node.start();
         }

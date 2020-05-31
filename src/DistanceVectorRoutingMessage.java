@@ -1,5 +1,4 @@
 import java.util.Map;
-import java.util.Vector;
 
 public class DistanceVectorRoutingMessage extends Message {
 
@@ -23,5 +22,13 @@ public class DistanceVectorRoutingMessage extends Message {
     @Override
     public types getType() {
         return types.ROUTING_MESSAGE;
+    }
+
+    @Override
+    public String toString() {
+        return "DistanceVectorRoutingMessage{" +
+                "distances=" + distances +
+                ", source=" + source +
+                '}';
     }
 }

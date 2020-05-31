@@ -1,4 +1,7 @@
 public class PingMessage extends Message{
+    public int getSource() {
+        return source;
+    }
 
     private int source;
 

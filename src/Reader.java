@@ -6,6 +6,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -29,6 +30,7 @@ abstract public class Reader extends Thread {
             ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()){
 
             if(selector == null || serverSocketChannel == null){
+                //TODO DON'T LET IT STAY LIKE THIS
                 System.err.println("well what can you do :/");
             }
 
@@ -66,28 +68,36 @@ abstract public class Reader extends Thread {
                         }
 
                         int bytes_read = client.read(byteBuffer);
+
                         if(bytes_read == -1){
-                            byteBuffer.clear();
-                            continue;
+                            // this occurs only if stream behind socket channel is closed
+                            throw new IOException("Stream is kaput");
                         }
+
+                        if(bytes_read >= byteBuffer.capacity()){
+                            // this will happen only if we red more than we have reserved
+                            // we can implement stacking buffers but it is not needed for this application
+                            // sizes are rarely bigger then 200 bytes
+                            throw new IOException("BUFFER OVERFLOW");
+                        }
+
                         String requestCompleted = new String(byteBuffer.array(), 0, bytes_read);
+
                         if (requestCompleted.endsWith("!")) {
+                            // this will tell us that message is done sending and that we can process it
                             Message message = Message.parseMessage(requestCompleted);
                             processMessage(message);
 
-                        } else {
-                            System.err.println("Not supported message type");
+                            // clearing buffer because we want to read into it again!
+                            byteBuffer.clear();
                         }
-
-                        // enable us to read again
-                        byteBuffer.clear(); // makes hell break loose
-//                        key.cancel();  // should delete this
                     } else{
                         System.err.println("Not supported key action!");
                     }
                 }
             }
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             e.printStackTrace();
         }
     }

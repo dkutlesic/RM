@@ -24,7 +24,7 @@ public abstract class Node extends Thread{
     public static final int NODE_PORT_OFFSET = 1234; // node i will be connected to port_offset + i port
     private int port;
     protected int identification;
-    private static final long REPORT_TIME = 100;
+    private static final long REPORT_TIME = 1000;
     private Set<Integer> liveNeighbors; // FIXME every time we receive ping message, add message source to the liveNeighbors set
     public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;  // hopefully not needed
 
@@ -51,18 +51,27 @@ public abstract class Node extends Thread{
     abstract void handleRoutingMessage(Message message);
 
 
-    public void checkNeighbours(){
+    public void checkNeighbours(PrintWriter out){
         // look what links haven't spoken with us in a while
-        adjacentNodesTable.keySet().retainAll(liveNeighbors);
-        socketTable.keySet().removeAll(liveNeighbors);
-        // FIXME UPDATE ROUTING TABLE
+//        adjacentNodesTable.keySet().retainAll(liveNeighbors);
+//        socketTable.keySet().removeAll(liveNeighbors);
+//        // FIXME UPDATE ROUTING TABLE
     }
 
-    private void reportToNeighbours(){
+    protected void reportToNeighbours(PrintWriter out){
         // send ping to all neighbours that we are alive and well
-        adjacentNodesTable.forEach((routerId, distance) -> {
-            nodeWriter.pingMessage(new PingMessage(this.identification), routerId);
-        });
+        PingMessage pingMessage = new PingMessage(this.identification);
+        try {
+            out.println("========================================\nBefore:");
+            out.println(pingMessage);
+            out.println("After:");
+            out.println(Message.parseMessage(pingMessage.sendingFormat()));
+            out.flush();
+            nodeWriter.getWritingBuffer().put(pingMessage);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        out.flush();
     }
 
 
@@ -112,6 +121,8 @@ public abstract class Node extends Thread{
 
             out.println("adjacency table for " + identification + " " + adjacentNodesTable);
 
+            out.flush();
+
             int cycle = 1;
             while(true){
                 // periodically tell our dear neighbours we are alive and well
@@ -121,9 +132,9 @@ public abstract class Node extends Thread{
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                reportToNeighbours();
+                reportToNeighbours(out);
                 if (cycle % 10 == 0) {
-                    checkNeighbours();
+                    checkNeighbours(out);
                     cycle = 0;
                 }
 
@@ -155,7 +166,7 @@ public abstract class Node extends Thread{
         }
     }
 
-    public class NodeWriter extends Thread{
+    protected class NodeWriter extends Thread{
 
         private static final int BUFF_SIZE = 10;
 
@@ -200,9 +211,9 @@ public abstract class Node extends Thread{
                             break;
                         case ROUTING_MESSAGE:
                             handleRoutingMessage(nextMessage);
-//                            handleDistanceVector((DistanceVectorRoutingMessage) nextMessage);
                             break;
                         case PING_MESSAGE:
+                            pingMessage((PingMessage) nextMessage);
                             break;
                         default:
                             System.err.println("UNSUPPORTED MESSAGE TYPE");
@@ -289,15 +300,23 @@ public abstract class Node extends Thread{
             }
         }
 
-        public void pingMessage(PingMessage pingMessage, Integer receiverId) {
-            if(socketTable.containsKey(receiverId - Node.NODE_PORT_OFFSET)){
-                PrintWriter outWriter = outStreams.get(receiverId - NODE_PORT_OFFSET);
-                outWriter.write(pingMessage.sendingFormat());
-                outWriter.flush();
+        public void pingMessage(PingMessage pingMessage) {
+            if(pingMessage.getSource() == this.identification) {
+                // we are sending ping message
+                adjacentNodesTable.forEach((neighbour, length) -> {
+                    if (outStreams.containsKey(neighbour - Node.NODE_PORT_OFFSET)) {
+                        PrintWriter outWriter = outStreams.get(neighbour - NODE_PORT_OFFSET);
+                        outWriter.write(pingMessage.sendingFormat());
+                        outWriter.flush();
+                    } else {
+                        System.err.println("UNKNOWN SOCKET FOR NODE " + neighbour);
+                    }
+                });
             }
             else{
-                System.err.println("UNKNOWN SOCKET FOR NODE " + receiverId);
+                // someone pinged us, how rude!
             }
+
         }
 
 

@@ -5,10 +5,16 @@ public class TextMessage extends Message {
     private Integer source;
     private Integer destination;
     private String content;
+    private Integer reciever;
+
+    public Integer getReciever() {
+        return reciever;
+    }
 
     public Integer getDestination() {
         return destination;
     }
+
     public String getContent() { return content; }
     public Integer getSource() { return source; }
 
