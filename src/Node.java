@@ -3,8 +3,7 @@ import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.stream.Collectors;
+import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class Node extends Thread{
     //statistics
@@ -29,6 +28,11 @@ public abstract class Node extends Thread{
     private Set<Integer> liveNeighbors; // FIXME every time we receive ping message, add message source to the liveNeighbors set
     public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;  // hopefully not needed
 
+    //locks
+    private ReentrantLock adjacentNodesTableLock;
+    private ReentrantLock socketTableLock;
+    private ReentrantLock routingTableLock;
+
     //IO
     private NodeWriter nodeWriter;
     private NodeReader reader;
@@ -47,6 +51,9 @@ public abstract class Node extends Thread{
         this.liveNeighbors = new HashSet<>();
         this.port = id + NODE_PORT_OFFSET;
         this.identification = id;
+        this.adjacentNodesTableLock = new ReentrantLock();
+        this.socketTableLock = new ReentrantLock();
+        this.routingTableLock = new ReentrantLock();
     }
 
     abstract void handleRoutingMessage(Message message);
@@ -55,24 +62,51 @@ public abstract class Node extends Thread{
     public void checkNeighbours(PrintWriter out){
         // look what links haven't spoken with us in a while
         Set<Integer> deadNeighbors = new HashSet<>();
-        deadNeighbors.addAll(adjacentNodesTable.keySet());
+        adjacentNodesTableLock.lock();
+        try {
+            deadNeighbors.addAll(adjacentNodesTable.keySet());
+        }
+        finally {
+            adjacentNodesTableLock.unlock();
+        }
         deadNeighbors.removeAll(liveNeighbors);
         if(!deadNeighbors.isEmpty()){
             System.err.println(this.identification);
            out.println("========================================");
            out.println("Dead nodes: " + deadNeighbors);
-           out.println("========================================\nBefore:");
+           out.println("========================================");
         }
-        for(Integer deadRoute : deadNeighbors){
-            routingTable.remove(deadRoute);
-           for(Map.Entry<Integer, Integer> e : routingTable.entrySet()){
-               if(e.getValue() == deadRoute){
-                   e.setValue(-1);
-               }
-           }
+
+        routingTableLock.lock();
+        try {
+            for (Integer deadRoute : deadNeighbors) {
+                routingTable.remove(deadRoute);
+                for (Map.Entry<Integer, Integer> e : routingTable.entrySet()) {
+                    if (e.getValue() == deadRoute) {
+                        e.setValue(-1);
+                    }
+                }
+            }
         }
-        adjacentNodesTable.keySet().removeIf(k -> deadNeighbors.contains(k));
-        socketTable.keySet().removeIf(k -> deadNeighbors.contains(k + NODE_PORT_OFFSET));
+        finally {
+            routingTableLock.unlock();
+        }
+
+        adjacentNodesTableLock.lock();
+        try {
+            adjacentNodesTable.keySet().removeIf(k -> deadNeighbors.contains(k));
+        }
+        finally {
+            adjacentNodesTableLock.unlock();
+        }
+
+        socketTableLock.lock();
+        try{
+            socketTable.keySet().removeIf(k -> deadNeighbors.contains(k + NODE_PORT_OFFSET));
+        }
+        finally {
+            socketTableLock.unlock();
+        }
     }
 
     protected void reportToNeighbours(PrintWriter out){
@@ -121,22 +155,44 @@ public abstract class Node extends Thread{
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            adjacentNodesTableLock.lock();
+            try {
+                adjacentNodesTable.forEach((p, l) -> {
+                    try {
+                        out.println("Node" + identification + " connecting to:" + p);
+                        Socket s = new Socket("localhost", p);
+                        socketTableLock.lock();
+                        try {
+                            socketTable.put(p - Node.NODE_PORT_OFFSET, s);
+                        } finally {
+                            socketTableLock.unlock();
+                        }
+                        outStreams.put(p - Node.NODE_PORT_OFFSET, new PrintWriter(s.getOutputStream()));
 
-            adjacentNodesTable.forEach((p, l) -> {
-                try {
-                    out.println("Node" + identification + " connecting to:" + p);
-                    Socket s = new Socket("localhost", p);
-                    socketTable.put(p - Node.NODE_PORT_OFFSET, s);
-                    outStreams.put(p - Node.NODE_PORT_OFFSET, new PrintWriter(s.getOutputStream()));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
+            finally {
+                adjacentNodesTableLock.unlock();
+            }
 
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
+            routingTableLock.lock();
+            try {
+                out.println("routing table for " + identification + " " + routingTable);
+            }
+            finally {
+                routingTableLock.unlock();
+            }
 
-            out.println("routing table for " + identification + " " + routingTable);
-
-            out.println("adjacency table for " + identification + " " + adjacentNodesTable);
+            adjacentNodesTableLock.lock();
+            try {
+                out.println("adjacency table for " + identification + " " + adjacentNodesTable);
+            }
+            finally {
+                adjacentNodesTableLock.unlock();
+            }
 
             out.flush();
 
@@ -254,19 +310,28 @@ public abstract class Node extends Thread{
                 floodingMessages.add(message.getFloodingId());
 
                 FloodingMessage forwardingMessage = message.copyForSending(this.identification);
-
-                adjacentNodesTable.forEach((router_id, length) -> {
-                    if(router_id != message.getSource()){
-                        if(socketTable.containsKey(router_id - Node.NODE_PORT_OFFSET)){
-                            PrintWriter outWriter = outStreams.get(router_id - NODE_PORT_OFFSET);
-                            outWriter.write(forwardingMessage.sendingFormat());
-                            outWriter.flush();
+                adjacentNodesTableLock.lock();
+                try {
+                    adjacentNodesTable.forEach((router_id, length) -> {
+                        if (router_id != message.getSource()) {
+                            socketTableLock.lock();
+                            try {
+                                if (socketTable.containsKey(router_id - Node.NODE_PORT_OFFSET)) {
+                                    PrintWriter outWriter = outStreams.get(router_id - NODE_PORT_OFFSET);
+                                    outWriter.write(forwardingMessage.sendingFormat());
+                                    outWriter.flush();
+                                } else {
+                                    System.err.println("UNKNOWN SOCKET FOR NODE " + router_id);
+                                }
+                            } finally {
+                                socketTableLock.unlock();
+                            }
                         }
-                        else{
-                            System.err.println("UNKNOWN SOCKET FOR NODE " + router_id);
-                        }
-                    }
-                });
+                    });
+                }
+                finally {
+                    adjacentNodesTableLock.unlock();
+                }
 
                 if(message instanceof FloodingNewConnection){
                     int source = message.getOriginalSender();
@@ -284,53 +349,77 @@ public abstract class Node extends Thread{
         private void makeConnection(int port, int id) {
             try {
                 Socket socket = new Socket("localhost", port);
-                socketTable.put(id, socket);
+                socketTableLock.lock();
+                try {
+                    socketTable.put(id, socket);
+                }
+                finally {
+                    socketTableLock.unlock();
+                }
                 outStreams.put(id, new PrintWriter(socket.getOutputStream()));
 
-                System.out.println("connected to socket" + socketTable.get(id) + " for id " + id);
+                socketTableLock.lock();
+                try {
+                    System.out.println("connected to socket" + socketTable.get(id) + " for id " + id);
+                }
+                finally {
+                    socketTableLock.unlock();
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
         private void forwardMessage(TextMessage message){
-            if(routingTable.containsKey(message.getDestination())){
-                // we know where to send
-                if(routingTable.get(message.getDestination()) == identification){
-                    // host is directly connected to us if routing table point to us
-                    // in outStreams table we can get output-stream for destination
-                    PrintWriter outWriter = outStreams.get(message.getDestination());
-                    outWriter.print(message.sendingFormat());
-                    outWriter.flush();
+            routingTableLock.lock();
+            try{
+                if(routingTable.containsKey(message.getDestination())){
+                    // we know where to send
+                    if(routingTable.get(message.getDestination()) == identification){
+                        // host is directly connected to us if routing table point to us
+                        // in outStreams table we can get output-stream for destination
+                        PrintWriter outWriter = outStreams.get(message.getDestination());
+                        outWriter.print(message.sendingFormat());
+                        outWriter.flush();
+                    }
+                    else
+                    {
+                        // here we know that routing table entry is pointing us toward next router
+                        // socket for next router is located in socketTable
+                        PrintWriter outWriter = outStreams.get(routingTable.get(message.getDestination()));
+                        outWriter.print(message.sendingFormat());
+                        outWriter.flush();
+                    }
                 }
-                else
-                {
-                    // here we know that routing table entry is pointing us toward next router
-                    // socket for next router is located in socketTable
-                    PrintWriter outWriter = outStreams.get(routingTable.get(message.getDestination()));
-                    outWriter.print(message.sendingFormat());
-                    outWriter.flush();
+                else{
+                    // cry for help
+                    System.err.println("Not supported destination");
+                    System.err.println("Putting message back ");
                 }
             }
-            else{
-                // cry for help
-                System.err.println("Not supported destination");
-                System.err.println("Putting message back ");
+            finally {
+                routingTableLock.unlock();
             }
         }
 
         public void pingMessage(PingMessage pingMessage) {
             if(pingMessage.getSource() == this.identification) {
                 // we are sending ping message
-                adjacentNodesTable.forEach((neighbour, length) -> {
-                    if (outStreams.containsKey(neighbour - Node.NODE_PORT_OFFSET)) {
-                        PrintWriter outWriter = outStreams.get(neighbour - NODE_PORT_OFFSET);
-                        outWriter.write(pingMessage.sendingFormat());
-                        outWriter.flush();
-                    } else {
-                        System.err.println("UNKNOWN SOCKET FOR NODE " + neighbour);
-                    }
-                });
+                adjacentNodesTableLock.lock();
+                try {
+                    adjacentNodesTable.forEach((neighbour, length) -> {
+                        if (outStreams.containsKey(neighbour - Node.NODE_PORT_OFFSET)) {
+                            PrintWriter outWriter = outStreams.get(neighbour - NODE_PORT_OFFSET);
+                            outWriter.write(pingMessage.sendingFormat());
+                            outWriter.flush();
+                        } else {
+                            System.err.println("UNKNOWN SOCKET FOR NODE " + neighbour);
+                        }
+                    });
+                }
+                finally {
+                    adjacentNodesTableLock.unlock();
+                }
             }
             else {
                 liveNeighbors.add(pingMessage.getSource() + NODE_PORT_OFFSET);
