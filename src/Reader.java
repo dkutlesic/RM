@@ -9,6 +9,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.Stream;
 
 abstract public class Reader extends Thread {
 
@@ -85,8 +86,8 @@ abstract public class Reader extends Thread {
 
                         if (requestCompleted.endsWith("!")) {
                             // this will tell us that message is done sending and that we can process it
-                            Message message = Message.parseMessage(requestCompleted);
-                            processMessage(message);
+                            String[] messages = requestCompleted.split("!");
+                            Stream.of(messages).map(m -> {return m + '!';}).map(Message::parseMessage).forEach(this::processMessage);
 
                             // clearing buffer because we want to read into it again!
                             byteBuffer.clear();
