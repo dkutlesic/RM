@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 public abstract class Node extends Thread{
     //statistics
@@ -53,9 +54,25 @@ public abstract class Node extends Thread{
 
     public void checkNeighbours(PrintWriter out){
         // look what links haven't spoken with us in a while
-//        adjacentNodesTable.keySet().retainAll(liveNeighbors);
-//        socketTable.keySet().removeAll(liveNeighbors);
-//        // FIXME UPDATE ROUTING TABLE
+        Set<Integer> deadNeighbors = new HashSet<>();
+        deadNeighbors.addAll(adjacentNodesTable.keySet());
+        deadNeighbors.removeAll(liveNeighbors);
+        if(!deadNeighbors.isEmpty()){
+            System.err.println(this.identification);
+           out.println("========================================");
+           out.println("Dead nodes: " + deadNeighbors);
+           out.println("========================================\nBefore:");
+        }
+        for(Integer deadRoute : deadNeighbors){
+            routingTable.remove(deadRoute);
+           for(Map.Entry<Integer, Integer> e : routingTable.entrySet()){
+               if(e.getValue() == deadRoute){
+                   e.setValue(-1);
+               }
+           }
+        }
+        adjacentNodesTable.keySet().removeIf(k -> deadNeighbors.contains(k));
+        socketTable.keySet().removeIf(k -> deadNeighbors.contains(k + NODE_PORT_OFFSET));
     }
 
     protected void reportToNeighbours(PrintWriter out){
@@ -129,6 +146,7 @@ public abstract class Node extends Thread{
                 // also while we are at it check for their health
                 try {
                     Thread.sleep(REPORT_TIME);
+                    cycle++;
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -136,6 +154,7 @@ public abstract class Node extends Thread{
                 if (cycle % 10 == 0) {
                     checkNeighbours(out);
                     cycle = 0;
+                    liveNeighbors.removeAll(liveNeighbors);
                 }
 
             }
@@ -313,8 +332,8 @@ public abstract class Node extends Thread{
                     }
                 });
             }
-            else{
-                // someone pinged us, how rude!
+            else {
+                liveNeighbors.add(pingMessage.getSource() + NODE_PORT_OFFSET);
             }
 
         }
