@@ -7,8 +7,12 @@ import java.io.*;
 import java.util.*;
 
 public class Main {
+    public static void killEdge(Node n1, Node n2){
+        n1.deleteEdge(n2.identification);
+        n2.deleteEdge(n1.identification);
+    }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         Node.ROUTING_TABLE_FOR_DEMO = new Map[3];
         Node.ROUTING_TABLE_FOR_DEMO[0] = new HashMap<>();
         Node.ROUTING_TABLE_FOR_DEMO[0].put(2, 1);
@@ -79,6 +83,11 @@ public class Main {
             nodes.add(node);
             node.start();
         }
+
+        Thread.sleep(5000);
+
+        killEdge(nodes.elementAt(0), nodes.elementAt(2));
+        System.out.println("EDGE 2-0 KILLED");
 
         Scanner scanner = new Scanner(System.in);
 

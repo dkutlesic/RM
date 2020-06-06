@@ -11,10 +11,6 @@ public abstract class Node extends Thread{
     private long receivedPacketsNumber;
     private long transmissionsNumber;
 
-    public NodeWriter getNodeWriter() {
-        return nodeWriter;
-    }
-
     //tables
     protected Map<Integer, Integer> adjacentNodesTable;
     protected Map<Integer, Socket> socketTable;
@@ -24,22 +20,36 @@ public abstract class Node extends Thread{
     public static final int NODE_PORT_OFFSET = 1234; // node i will be connected to port_offset + i port
     private int port;
     protected int identification;
-    private static final long REPORT_TIME = 1000;
+    private static final long REPORT_TIME = 100;
     private Set<Integer> liveNeighbors; // FIXME every time we receive ping message, add message source to the liveNeighbors set
     public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;  // hopefully not needed
 
-    //locks
-    private ReentrantLock adjacentNodesTableLock;
-    private ReentrantLock socketTableLock;
-    private ReentrantLock routingTableLock;
+    //locksTrue
+    protected ReentrantLock adjacentNodesTableLock;
+    protected ReentrantLock socketTableLock;
+    protected ReentrantLock routingTableLock;
+
+    //logging
+    protected PrintWriter log;
 
     //IO
     private NodeWriter nodeWriter;
     private NodeReader reader;
     protected Map<Integer, PrintWriter> outStreams = new HashMap<>();
+    private static PrintWriter placeholderStream;
 
-    // handler for routing messages
+    static {
+        try {
+            placeholderStream = new PrintWriter(
+                        new FileOutputStream("logs/messages_forgoten.txt"));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
 
+    public NodeWriter getNodeWriter() {
+        return nodeWriter;
+    }
 
     public Node(Map<Integer, Integer> adjacentNodesTable, int id) {
         this.sentPacketsNumber = 0;
@@ -54,12 +64,24 @@ public abstract class Node extends Thread{
         this.adjacentNodesTableLock = new ReentrantLock();
         this.socketTableLock = new ReentrantLock();
         this.routingTableLock = new ReentrantLock();
+        try {
+            this.log = new PrintWriter(
+                    new OutputStreamWriter(
+                            new FileOutputStream(
+                                    "logs/" + identification + ".txt"
+                            )
+                    )
+            );
+        } catch (FileNotFoundException e) {
+            System.err.println("NOT GONNA HAPPEN");
+        }
     }
 
     abstract void handleRoutingMessage(Message message);
 
+    abstract void cleanupDeadRouts(Set<Integer> deadNeighbors);
 
-    public void checkNeighbours(PrintWriter out){
+    public void checkNeighbours(){
         // look what links haven't spoken with us in a while
         Set<Integer> deadNeighbors = new HashSet<>();
         adjacentNodesTableLock.lock();
@@ -72,25 +94,12 @@ public abstract class Node extends Thread{
         deadNeighbors.removeAll(liveNeighbors);
         if(!deadNeighbors.isEmpty()){
             System.err.println(this.identification);
-           out.println("========================================");
-           out.println("Dead nodes: " + deadNeighbors);
-           out.println("========================================");
+            log.println("========================================");
+            log.println("Dead nodes: " + deadNeighbors);
+            log.println("========================================");
         }
 
-        routingTableLock.lock();
-        try {
-            for (Integer deadRoute : deadNeighbors) {
-                routingTable.remove(deadRoute);
-                for (Map.Entry<Integer, Integer> e : routingTable.entrySet()) {
-                    if (e.getValue() == deadRoute) {
-                        e.setValue(-1);
-                    }
-                }
-            }
-        }
-        finally {
-            routingTableLock.unlock();
-        }
+        cleanupDeadRouts(deadNeighbors);
 
         adjacentNodesTableLock.lock();
         try {
@@ -109,115 +118,116 @@ public abstract class Node extends Thread{
         }
     }
 
-    protected void reportToNeighbours(PrintWriter out){
+    protected void reportToNeighbours(){
         // send ping to all neighbours that we are alive and well
         PingMessage pingMessage = new PingMessage(this.identification);
         try {
-            out.println("========================================\nBefore:");
-            out.println(pingMessage);
-            out.println("After:");
-            out.println(Message.parseMessage(pingMessage.sendingFormat()));
-            out.flush();
+//            out.println(java.time.LocalDate.now() + ": " + pingMessage);
+//            out.flush();
             nodeWriter.getWritingBuffer().put(pingMessage);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        out.flush();
+        log.flush();
     }
 
+    public void deleteEdge(int nodeID){
+        /**
+          deletes edge towards node with ID nodeID
+         */
+        socketTableLock.lock();
+        try {
+            socketTable.get(nodeID).close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        outStreams.put(nodeID, placeholderStream);
+        socketTableLock.unlock();
+    }
 
     @Override
     public void run() {
-        try(PrintWriter out = new PrintWriter(
-                new OutputStreamWriter(
-                        new FileOutputStream(
-                            "logs/" + identification + ".txt"
-                        )
-                )
-        )) {
+        log.println(port);
 
-            out.println(port);
+        // activate writing thread
+        nodeWriter = new NodeWriter(this. identification);
+        nodeWriter.start();
 
-            // activate writing thread
-            nodeWriter = new NodeWriter(this. identification);
-            nodeWriter.start();
+        // activate reading thread
+        reader = new NodeReader(this.port, this.identification, this.nodeWriter);
+        reader.start();
 
-            // activate reading thread
-            reader = new NodeReader(this.port, this.identification, this.nodeWriter);
-            reader.start();
+        // this part is terrible hacking because i am not sure how can we
+        // guarantee that we can connect to socket in adjacentNodesTable
+        // we wait for 1 second and all the sockets SHOULD be active
 
-            // this part is terrible hacking because i am not sure how can we
-            // guarantee that we can connect to socket in adjacentNodesTable
-            // we wait for 1 second and all the sockets SHOULD be active
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        adjacentNodesTableLock.lock();
+        try {
+            adjacentNodesTable.forEach((p, l) -> {
+                try {
+                    log.println("Node" + identification + " connecting to:" + p);
+                    Socket s = new Socket("localhost", p);
+                    socketTableLock.lock();
+                    try {
+                        socketTable.put(p - Node.NODE_PORT_OFFSET, s);
+                    } finally {
+                        socketTableLock.unlock();
+                    }
+                    outStreams.put(p - Node.NODE_PORT_OFFSET, new PrintWriter(s.getOutputStream()));
 
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+        finally {
+            adjacentNodesTableLock.unlock();
+        }
+
+        routingTableLock.lock();
+        try {
+            log.println("routing table for " + identification + " " + routingTable);
+        }
+        finally {
+            routingTableLock.unlock();
+        }
+
+        adjacentNodesTableLock.lock();
+        try {
+            log.println("adjacency table for " + identification + " " + adjacentNodesTable);
+        }
+        finally {
+            adjacentNodesTableLock.unlock();
+        }
+
+        log.flush();
+
+        int cycle = 1;
+        while(true){
+            // periodically tell our dear neighbours we are alive and well
+            // also while we are at it check for their health
+            log.println(java.time.LocalDate.now() + ": " + "routing table = " + routingTable);
+            log.println(java.time.LocalDate.now() + ": " + "adjacentNodes table = " + adjacentNodesTable);
+            log.flush();
             try {
-                Thread.sleep(1000);
+                Thread.sleep(REPORT_TIME);
+                cycle++;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            adjacentNodesTableLock.lock();
-            try {
-                adjacentNodesTable.forEach((p, l) -> {
-                    try {
-                        out.println("Node" + identification + " connecting to:" + p);
-                        Socket s = new Socket("localhost", p);
-                        socketTableLock.lock();
-                        try {
-                            socketTable.put(p - Node.NODE_PORT_OFFSET, s);
-                        } finally {
-                            socketTableLock.unlock();
-                        }
-                        outStreams.put(p - Node.NODE_PORT_OFFSET, new PrintWriter(s.getOutputStream()));
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
-            }
-            finally {
-                adjacentNodesTableLock.unlock();
+            reportToNeighbours();
+            if (cycle % 10 == 0) {
+                checkNeighbours();
+                cycle = 0;
+                liveNeighbors.removeAll(liveNeighbors);
             }
 
-            routingTableLock.lock();
-            try {
-                out.println("routing table for " + identification + " " + routingTable);
-            }
-            finally {
-                routingTableLock.unlock();
-            }
-
-            adjacentNodesTableLock.lock();
-            try {
-                out.println("adjacency table for " + identification + " " + adjacentNodesTable);
-            }
-            finally {
-                adjacentNodesTableLock.unlock();
-            }
-
-            out.flush();
-
-            int cycle = 1;
-            while(true){
-                // periodically tell our dear neighbours we are alive and well
-                // also while we are at it check for their health
-                try {
-                    Thread.sleep(REPORT_TIME);
-                    cycle++;
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                reportToNeighbours(out);
-                if (cycle % 10 == 0) {
-                    checkNeighbours(out);
-                    cycle = 0;
-                    liveNeighbors.removeAll(liveNeighbors);
-                }
-
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         }
-
 
     }
 

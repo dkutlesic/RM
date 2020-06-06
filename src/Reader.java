@@ -72,7 +72,10 @@ abstract public class Reader extends Thread {
 
                         if(bytes_read == -1){
                             // this occurs only if stream behind socket channel is closed
-                            throw new IOException("Stream is kaput");
+//                            throw new IOException("Stream is kaput");
+                            System.err.println("Stream done");
+                            key.cancel();
+                            continue;
                         }
 
                         if(bytes_read >= byteBuffer.capacity()){

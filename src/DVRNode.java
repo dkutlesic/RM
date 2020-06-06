@@ -28,7 +28,7 @@ public class DVRNode extends Node {
         if(source == identification){
             // we sent message we should send it to our neighbours
             adjacentNodesTable.forEach((Integer neighbour, Integer length) -> {
-                if(socketTable.containsKey(neighbour - Node.NODE_PORT_OFFSET)){
+                if(outStreams.containsKey(neighbour - Node.NODE_PORT_OFFSET)){
                     PrintWriter outWriter = outStreams.get(neighbour - Node.NODE_PORT_OFFSET);
                     outWriter.write(message.sendingFormat());
                     outWriter.flush();
@@ -58,20 +58,42 @@ public class DVRNode extends Node {
     }
 
     @Override
-    protected void reportToNeighbours(PrintWriter out) {
-        super.reportToNeighbours(out);
+    void cleanupDeadRouts(Set<Integer> deadNeighbors) {
+        routingTableLock.lock();
+        try {
+            deadNeighbors.forEach(deadRoute -> {
+                log.println("removing " + (deadRoute - NODE_PORT_OFFSET) );
+                routingTable.put(deadRoute - NODE_PORT_OFFSET, null);
+                distancesFromNodes.put(deadRoute - NODE_PORT_OFFSET, -1);
+                System.err.println(routingTable);
+                routingTable.forEach((dest, next_hop) -> {
+                    if(dest != this.identification
+                            && dest != deadRoute - NODE_PORT_OFFSET
+                            && next_hop == deadRoute - NODE_PORT_OFFSET){
+                        routingTable.put(dest, null);
+                        distancesFromNodes.put(dest, -1);
+                    }
+                });
+            });
+            log.println("routing table: " + routingTable);
+        }
+        finally {
+            routingTableLock.unlock();
+        }
+
+    }
+
+    @Override
+    protected void reportToNeighbours() {
+        super.reportToNeighbours();
         DistanceVectorRoutingMessage routingMessage = new DistanceVectorRoutingMessage(distancesFromNodes, this.identification);
         try {
-            out.println("===========================\nBefore:");
-            out.println(routingMessage);
-            out.println("After:");
-            out.println(Message.parseMessage(routingMessage.sendingFormat()));
-            out.println("Message length: " + routingMessage.toString().length());
+//            out.println(java.time.LocalDate.now() + ": " + routingMessage);
             if(routingMessage.sendingFormat().indexOf('!') != routingMessage.sendingFormat().length() - 1){
-                out.write("CAN CAUSE PROBLEMS");
+                log.write("CAN CAUSE PROBLEMS");
             }
 
-            out.flush();
+            log.flush();
             getNodeWriter().getWritingBuffer().put(routingMessage);
         } catch (InterruptedException e) {
             e.printStackTrace();

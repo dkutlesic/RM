@@ -1,0 +1,299 @@
+1235
+Node1 connecting to:1236
+Node1 connecting to:1234
+routing table for 1 {0=null, 1=null, 2=null}
+adjacency table for 1 {1236=3, 1234=1}
+2020-06-06: routing table = {0=null, 1=null, 2=null}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=null, 1=null, 2=null}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=2}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
+routing table: {0=0, 1=null, 2=0}
+2020-06-06: routing table = {0=0, 1=null, 2=0}
+2020-06-06: adjacentNodes table = {1236=3, 1234=1}
