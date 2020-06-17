@@ -57,7 +57,8 @@ public abstract class Node extends Thread{
         this.transmissionsNumber = 0;
         this.adjacentNodesTable = new HashMap<>(adjacentNodesTable);
         this.socketTable = new HashMap<>();
-        this.routingTable = new HashMap<>(Node.ROUTING_TABLE_FOR_DEMO[identification]);
+        //TODO commenting this out for testing LSR node
+        //this.routingTable = new HashMap<>(Node.ROUTING_TABLE_FOR_DEMO[identification]);
         this.liveNeighbors = new HashSet<>();
         this.port = id + NODE_PORT_OFFSET;
         this.identification = id;
@@ -227,6 +228,16 @@ public abstract class Node extends Thread{
                 liveNeighbors.removeAll(liveNeighbors);
             }
 
+            //for LSRnode: change phase if needed
+            if(this instanceof LSRNode) {
+                if (cycle  == 3) {
+                    ((LSRNode) this).phase = LSRNode.Phase.FLOODING;
+                }
+                else{
+                    ((LSRNode) this).runDijkstra();
+                    ((LSRNode) this).phase = LSRNode.Phase.DIJKSTRA;
+                }
+            }
         }
 
     }
@@ -308,12 +319,6 @@ public abstract class Node extends Thread{
         }
 
         private void floodMessage(FloodingMessage message){
-            //FIXME
-            // think that we need two ids to identify message uniqueness
-            // one for node id of the message source
-            // and the other for messageId
-            // when the node wants to flood new message, it doesn't know which messageIds are not used so far
-            // second option: to statically increment messageId for all nodes, but that is bljaksi
             if(! floodingMessages.contains(message.getFloodingId())){
                 // we never sent (or seen for that matter) this message
 
@@ -346,12 +351,12 @@ public abstract class Node extends Thread{
                 if(message instanceof FloodingNewConnection){
                     int source = message.getOriginalSender();
                     int newHost = ((FloodingNewConnection) message).getNewHostId();
-                    // update routing table
+                    //TODO update routing table
                 }
                 else if(message instanceof FloodingTopologyMessage){
                     Map<Integer, Integer> senderAdjacentNodesTable = ((FloodingTopologyMessage) message).getAdjacentNodesTable();
                     int sender = message.getOriginalSender();
-                    // update topology
+                    //TODO update topology
                 }
             }
         }
