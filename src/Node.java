@@ -399,11 +399,21 @@ public abstract class Node extends Thread{
                     }
                     else
                     {
-                        // here we know that routing table entry is pointing us toward next router
-                        // socket for next router is located in socketTable
-                        PrintWriter outWriter = outStreams.get(routingTable.get(message.getDestination()));
-                        outWriter.print(message.sendingFormat());
-                        outWriter.flush();
+                        if(routingTable.get(message.getDestination()) == -1){
+                            // it means destination got changed up and we need to finish routing
+                            try {
+                                writingBuffer.put(message);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        else{
+                            // here we know that routing table entry is pointing us toward next router
+                            // socket for next router is located in socketTable
+                            PrintWriter outWriter = outStreams.get(routingTable.get(message.getDestination()));
+                            outWriter.print(message.sendingFormat());
+                            outWriter.flush();
+                        }
                     }
                 }
                 else{

@@ -79,7 +79,7 @@ public class Main {
         Vector<Node> nodes = new Vector<>();
 
         for (int i = 0; i < tables.size(); i++) {
-            DVRNode node = new DVRNode(tables.get(i), i, seenNodes);
+            LSRNode node = new LSRNode(tables.get(i), i);
             nodes.add(node);
             node.start();
         }

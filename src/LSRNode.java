@@ -1,5 +1,6 @@
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class LSRNode extends Node {
 
@@ -9,16 +10,21 @@ public class LSRNode extends Node {
 
     protected enum Phase{
         FLOODING,
-        DIJKSTRA
+        DIJKSTRA,
+        UPDATED,
+        FINISHED
     }
     protected Phase phase;
+    protected ReentrantLock phaseLock;
 
     public LSRNode(Map<Integer, Integer> adjacentNodesTable, int identification) {
-        super(adjacentNodesTable, identification);
+        super(adjacentNodesTable, identification);   // here we know that routing table entry is pointing us toward next router
+
         this.identification = identification;
         this.routingTable = new HashMap<>();
         this.phase = Phase.FLOODING;
         initializeTopology();
+        phaseLock = new ReentrantLock();
     }
 
     private void initializeTopology(){
@@ -28,17 +34,36 @@ public class LSRNode extends Node {
         updateTopologyWithVertex(this.identification);
         adjacentNodesTable.forEach((k,v) -> {
             updateTopologyWithVertex(k);
+
             updateTopologyWithLink(identification, k, v);
         });
     }
 
     @Override
     void handleRoutingMessage(Message message) {
-        if(this.phase == Phase.DIJKSTRA){
-            //FIXME what if we get the routing message during the phase 2?
+
+        assert message instanceof FloodingTopologyMessage;
+        phaseLock.lock();
+        if(this.phase == Phase.FINISHED){
+            // if we calculated routes we need
+            // check if something is changed
+            if(topology.containtsVertexId(((FloodingTopologyMessage) message).originalSender)) {
+                // we are checking if there is news about topology
+                ((FloodingTopologyMessage) message).getAdjacentNodesTable().forEach(
+                        (id, length) -> {
+                            if (!topology.containesEdge(((FloodingTopologyMessage) message).originalSender, id, length)){
+                                // we need to update topology
+                                updateTopologyWithLink(((FloodingTopologyMessage) message).originalSender, id, length);
+                                phase = Phase.FLOODING;
+                            }
+                        });
+            }
+        }
+        else if(this.phase == Phase.DIJKSTRA){
+            // this shouldn't happen
+            System.err.println("PHASE IS DIJKSTRA");
         }
         else{
-            assert message instanceof FloodingTopologyMessage;
             FloodingTopologyMessage floodingTopologyMessage = (FloodingTopologyMessage) message;
             int source = floodingTopologyMessage.getSource();
             if(source == identification){
@@ -67,11 +92,19 @@ public class LSRNode extends Node {
                 }
             }
         }
+        phaseLock.unlock();
     }
 
     @Override
     void cleanupDeadRouts(Set<Integer> deadNeighbors) {
+        phaseLock.lock();
+        if(!deadNeighbors.isEmpty()) {
+            phase = Phase.UPDATED;
+            // TODO:
+            // should update topology
+        }
 
+        phaseLock.unlock();
     }
 
     public Graph getTopology(){
@@ -89,6 +122,9 @@ public class LSRNode extends Node {
         if(!topology.containtsVertexId(vertexId2))
             updateTopologyWithVertex(vertexId2);
         v2 = topology.getVertexWithId(vertexId2);
+
+        System.out.println(vertexId1);
+        System.out.println(vertexId2);
 
         if(!v1.hasEdgeTo(vertexId2)){
             Edge from1to2 = new Edge(v2, linkCost);
@@ -108,7 +144,7 @@ public class LSRNode extends Node {
     public void updateTopologyWithVertex(int vertexId){
         if(!topology.getVertices().contains(topology.getVertexWithId(vertexId))) {
             topology.addVertex(new Vertex(vertexId));
-            //System.out.println("Vertex added: " + vertexId);
+            System.out.println("Vertex added: " + vertexId);
         }
     }
 
@@ -149,6 +185,8 @@ public class LSRNode extends Node {
         //previous.forEach((k,v) -> System.out.println("ja: " + k.getId() + " roditelj: " + v.getId()));
 
         //calculating next hop
+
+        routingTableLock.lock();
         for(Vertex v : topology.getVertices()){
             if(v == topology.me) continue;
 
@@ -160,7 +198,11 @@ public class LSRNode extends Node {
                 ancestor = previous.get(ancestor);
             }
             v.setNextHop(nextHop);
+
+            routingTable.put(v.id , nextHop.id);
         }
+        routingTableLock.unlock();
+        this.phase = Phase.FINISHED;
     }
 
     private Set<Vertex> copyVertices(){
@@ -238,6 +280,27 @@ public class LSRNode extends Node {
         public Vertex getNextHop() { return nextHop; }
     }
 
+    @Override
+    protected void reportToNeighbours(){
+        super.reportToNeighbours();
+
+        phaseLock.lock();
+        if(this.phase == Phase.UPDATED){
+            // this will mean we updated something in our adjacency neighbour list
+            FloodingTopologyMessage messaqe = new FloodingTopologyMessage(identification, 0, identification,adjacentNodesTable);
+            try {
+                getNodeWriter().getWritingBuffer().put(messaqe);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            phase = Phase.FLOODING;
+        }
+        else if(this.phase == Phase.FLOODING){
+            // if we are in flooding state check how much time has passed since last change
+        }
+        phaseLock.unlock();
+    }
+
     private class VertexComparator implements Comparator<Vertex>{
         @Override
         public int compare(Vertex v1, Vertex v2) {
@@ -245,7 +308,7 @@ public class LSRNode extends Node {
         }
     }
 
-    public class Graph {
+    public class Graph  {
 
         private Set<Vertex> vertices;
         private Vertex me;
@@ -265,7 +328,7 @@ public class LSRNode extends Node {
 
         public Vertex getVertexWithId(Integer id){
             for(Vertex v : vertices){
-                if(v.getId() == id)
+                if(v.getId().equals(id))
                     return v;
             }
             return null;
@@ -277,6 +340,18 @@ public class LSRNode extends Node {
                     return true;
             }
             return false;
+        }
+        public boolean containesEdge(Integer v1, Integer v2, int length){
+            if(vertices.stream()
+                    .map(v -> v.id)
+                    .filter(id -> {return id == v1 || id == v2;})
+                    .count() == 2)
+            {
+                // FIXME: topology needs changing in this case!
+                return true;
+            }
+            else
+                return false;
         }
     }
 

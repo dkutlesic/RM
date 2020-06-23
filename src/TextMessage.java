@@ -5,9 +5,9 @@ public class TextMessage extends Message {
     private Integer source;
     private Integer destination;
     private String content;
-    private Integer reciever;
+    private Host reciever;
 
-    public Integer getReciever() {
+    public Host getReciever() {
         return reciever;
     }
 
@@ -21,6 +21,13 @@ public class TextMessage extends Message {
     public TextMessage(Integer source, Integer destination, String content) {
         this.source = source;
         this.destination = destination;
+        this.content = content;
+    }
+
+    public TextMessage(Integer source, Host reciever, String content){
+        this.source = source;
+        this.reciever = reciever;
+//        this.destination = reciever.getPriority();
         this.content = content;
     }
 
