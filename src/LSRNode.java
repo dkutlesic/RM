@@ -2,18 +2,48 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * LSRNode states for Link State routing node
+ * If LSR node is used the LSR algorithm is applied for routing
+ */
 public class LSRNode extends Node {
 
-    public static int infinity = 100000;
-    //TODO public only for testing
-    public Graph topology;
-
+    /**
+     * In the link state algorithm the node is in different phases
+     */
     protected enum Phase{
+        /**
+         * Flooding is an initial phase in the algorithm
+         * All nodes flood information about their neighbors until all nodes learn full topology of a network
+         */
         FLOODING,
+        /**
+         * In this phase node calculates distances and next hops using Dijkstra's algorithm
+         */
         DIJKSTRA,
+        /**
+         * The topology is updated after cleaning up dead routes
+         */
         UPDATED,
+        /**
+         * The node has full topology and the routing is finished
+         */
         FINISHED
     }
+
+    /**
+     * Maximal distance between nodes
+     * Used in Dijkstra's algorithm for a distance initialization
+     */
+    private static int infinity = 100000;
+    /**
+     * Topology is a graph that represents the network topology
+     */
+    protected Graph topology;
+
+    /**
+     * Current phase
+     */
     protected Phase phase;
     protected ReentrantLock phaseLock;
 
@@ -27,6 +57,12 @@ public class LSRNode extends Node {
         phaseLock = new ReentrantLock();
     }
 
+    public Graph getTopology(){ return topology; }
+
+    /**
+     * initialize topology
+     * add this node and its neighbors to a network topology
+     */
     private void initializeTopology(){
         Vertex me = new Vertex(this.identification);
         topology = new Graph(me);
@@ -40,6 +76,7 @@ public class LSRNode extends Node {
     }
 
     @Override
+    //FIXME documentation
     void handleRoutingMessage(Message message) {
 
         assert message instanceof FloodingTopologyMessage;
@@ -47,12 +84,12 @@ public class LSRNode extends Node {
         if(this.phase == Phase.FINISHED){
             // if we calculated routes we need
             // check if something is changed
-            if(topology.containtsVertexId(((FloodingTopologyMessage) message).originalSender)) {
+            if(topology.containsVertexId(((FloodingTopologyMessage) message).originalSender)) {
                 // we are checking if there is news about topology
                 ((FloodingTopologyMessage) message).getAdjacentNodesTable().forEach(
                         (id, length) -> {
-                            if (!topology.containesEdge(((FloodingTopologyMessage) message).originalSender, id, length)){
-                                // we need to update topology
+                            if (!topology.containsEdge(((FloodingTopologyMessage) message).originalSender, id, length)){
+                                // the topology need to be updated
                                 updateTopologyWithLink(((FloodingTopologyMessage) message).originalSender, id, length);
                                 phase = Phase.FLOODING;
                             }
@@ -95,10 +132,13 @@ public class LSRNode extends Node {
         phaseLock.unlock();
     }
 
+    /**
+     * @param deadNeighbors Set of identification of dead nodes
+     */
     @Override
     void cleanupDeadRouts(Set<Integer> deadNeighbors) {
         phaseLock.lock();
-        if(!deadNeighbors.isEmpty()) {
+        if (!deadNeighbors.isEmpty()) {
             phase = Phase.UPDATED;
             // TODO:
             // should update topology
@@ -107,19 +147,20 @@ public class LSRNode extends Node {
         phaseLock.unlock();
     }
 
-    public Graph getTopology(){
-        return topology;
-    }
-
-    //TODO public only for testing
-    public void updateTopologyWithLink(int vertexId1, int vertexId2, int linkCost){
+    /**
+     * @param vertexId1 Identification of the first vertex
+     * @param vertexId2 Identification of the second vector
+     * @param linkCost The cost of the link between these two vertices
+     * Update the topology with a link with a given cost between two given vertices
+     */
+    protected void updateTopologyWithLink(int vertexId1, int vertexId2, int linkCost){
         Vertex v1, v2;
 
-        if(!topology.containtsVertexId(vertexId1))
+        if(!topology.containsVertexId(vertexId1))
             updateTopologyWithVertex(vertexId1);
         v1 = topology.getVertexWithId(vertexId1);
 
-        if(!topology.containtsVertexId(vertexId2))
+        if(!topology.containsVertexId(vertexId2))
             updateTopologyWithVertex(vertexId2);
         v2 = topology.getVertexWithId(vertexId2);
 
@@ -140,19 +181,25 @@ public class LSRNode extends Node {
 
     }
 
-    //TODO public only for testing
-    public void updateTopologyWithVertex(int vertexId){
+    /**
+     * @param vertexId Identification of the vertex
+     * Adds the vertex with a given identification to the topology
+     * No links are added to the topology
+     */
+    protected void updateTopologyWithVertex(int vertexId){
         if(!topology.getVertices().contains(topology.getVertexWithId(vertexId))) {
             topology.addVertex(new Vertex(vertexId));
-            System.out.println("Vertex added: " + vertexId);
+            //System.out.println("Vertex added: " + vertexId);
         }
     }
 
-    //TODO public only for testing
-    public void runDijkstra(){
-        //in this function we update topology information with appropriate distance and next hop
+    /**
+     *  Update the topology information with appropriate distances between
+     *  this node and other nodes and next hops for routing
+     */
+    protected void runDijkstra(){
         assert this.phase == Phase.DIJKSTRA;
-        System.out.println("blaa");
+
         for(Vertex v : topology.getVertices()){
             v.setDistance(infinity);
         }
@@ -162,6 +209,7 @@ public class LSRNode extends Node {
         topology.getVertexWithId(this.identification).setNextHop(topology.me);
 
         Set<Vertex> unprocessed = copyVertices();
+
         //(node, parent)
         Map<Vertex, Vertex> previous = new HashMap<>();
         previous.put(topology.getVertexWithId(this.identification), topology.getVertexWithId(this.identification));
@@ -185,12 +233,9 @@ public class LSRNode extends Node {
         //previous.forEach((k,v) -> System.out.println("ja: " + k.getId() + " roditelj: " + v.getId()));
 
         //calculating next hop
-
         routingTableLock.lock();
         for(Vertex v : topology.getVertices()){
             if(v == topology.me) continue;
-
-            //Vertex nextHop = topology.me;
             Vertex nextHop = v;
             Vertex ancestor = previous.get(v);
             while (ancestor.getId() != topology.me.getId()) {
@@ -198,13 +243,15 @@ public class LSRNode extends Node {
                 ancestor = previous.get(ancestor);
             }
             v.setNextHop(nextHop);
-
             routingTable.put(v.id , nextHop.id);
         }
         routingTableLock.unlock();
         this.phase = Phase.FINISHED;
     }
 
+    /**
+     * @return all vertices from the graph topology
+     */
     private Set<Vertex> copyVertices(){
         Set<Vertex> set = new HashSet<>();
         for(Vertex v : topology.getVertices())
@@ -212,10 +259,20 @@ public class LSRNode extends Node {
         return set;
     }
 
-    //TODO public only for testing
-    public class Edge {
+    /**
+     * Utility class for graph class
+     * Represents edge between two vertex in a topology graph
+     * Edges are directional
+     */
+    protected class Edge {
 
+        /**
+         * The vertex that is at the end of the link
+         */
         private Vertex to;
+        /**
+         * link cost
+         */
         private int weight;
 
         public Edge(Vertex to, int weight) {
@@ -226,20 +283,33 @@ public class LSRNode extends Node {
         public Vertex getTo(){
             return to;
         }
-
         public int getWeight() {
             return weight;
         }
     }
 
-    //TODO public only for testing
-    public class Vertex {
+    /**
+     * Utility class for graph class
+     * Represents vertex in a topology class
+     * Vertex in topology == node in network
+     */
+    protected class Vertex {
 
+        /**
+         * The identification of the vertex
+         */
         private Integer id;
+        /**
+         * All edges from this vertex to other vertices
+         */
         private Set<Edge> edges;
-        //distance from me to the vertex
+        /**
+         * distance from me (this node) to the vertex (node)
+         */
         private int distance;
-        //which node I use to get to this vertex
+        /**
+         * which node is used to get to this vertex (node)
+         */
         private Vertex nextHop;
 
         public Vertex(Integer id) {
@@ -247,6 +317,10 @@ public class LSRNode extends Node {
             edges = new HashSet<>();
         }
 
+        /**
+         * @param identification The identification of the vertex
+         * @return true if there is a link from this Vertex to a vertex with a given identification
+         */
         public boolean hasEdgeTo(int identification){
             for(Edge e : edges){
                 if(e.getTo().getId() == identification)
@@ -281,6 +355,7 @@ public class LSRNode extends Node {
     }
 
     @Override
+    //FIXME
     protected void reportToNeighbours(){
         super.reportToNeighbours();
 
@@ -301,6 +376,9 @@ public class LSRNode extends Node {
         phaseLock.unlock();
     }
 
+    /**
+     * The vertex is "less" if it is closer to this node
+     */
     private class VertexComparator implements Comparator<Vertex>{
         @Override
         public int compare(Vertex v1, Vertex v2) {
@@ -308,9 +386,15 @@ public class LSRNode extends Node {
         }
     }
 
-    public class Graph  {
+    protected class Graph  {
 
+        /**
+         * Nodes in the network
+         */
         private Set<Vertex> vertices;
+        /**
+         * This node
+         */
         private Vertex me;
 
         public Graph(Vertex me) {
@@ -326,6 +410,10 @@ public class LSRNode extends Node {
             return vertices;
         }
 
+        /**
+         * @param id
+         * @return Vertex for a given id. If it does not exist null is returned
+         */
         public Vertex getVertexWithId(Integer id){
             for(Vertex v : vertices){
                 if(v.getId().equals(id))
@@ -334,14 +422,16 @@ public class LSRNode extends Node {
             return null;
         }
 
-        public boolean containtsVertexId(Integer id){
+        public boolean containsVertexId(Integer id){
             for(Vertex v : vertices){
                 if(v.getId() == id)
                     return true;
             }
             return false;
         }
-        public boolean containesEdge(Integer v1, Integer v2, int length){
+
+        //FIXME
+        public boolean containsEdge(Integer v1, Integer v2, int length){
             if(vertices.stream()
                     .map(v -> v.id)
                     .filter(id -> {return id == v1 || id == v2;})

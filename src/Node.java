@@ -348,9 +348,9 @@ public abstract class Node extends Thread{
                     adjacentNodesTableLock.unlock();
                 }
 
-                if(message instanceof FloodingNewConnection){
+                if(message instanceof FloodingNewConnectionMessage){
                     int source = message.getOriginalSender();
-                    int newHost = ((FloodingNewConnection) message).getNewHostId();
+                    int newHost = ((FloodingNewConnectionMessage) message).getNewHostId();
                     //TODO update routing table
                 }
                 else if(message instanceof FloodingTopologyMessage){

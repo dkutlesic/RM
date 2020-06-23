@@ -5,14 +5,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
+/**
+ * Host in a network
+ */
 public class Host extends Thread{
 
+    /**
+     * Specialized Writer for host
+     */
     private class Writer extends Thread{
         private PrintWriter out;
         public Writer(PrintWriter out) {
             this.out = out;
         }
 
+        /**
+         * Scan the message and receiver id from the standard input and write it to output stream
+         */
         @Override
         public void run() {
             ConnectionMessage conn_msg = new ConnectionMessage(port, id);
@@ -39,7 +48,13 @@ public class Host extends Thread{
     public static final int HOST_PORT_OFFSET = 4000;
     private static int host_number = 0;
 
+    /**
+     * Host identificaiton
+     */
     private int id;
+    /**
+     * Port = host identification + HOST_PORT_OFFSET
+     */
     private int port;
     private Map<Integer, Socket> socketTable;
 
@@ -58,6 +73,9 @@ public class Host extends Thread{
         host.start();
     }
 
+    /**
+     * Start streams for reading and writing
+     */
     @Override
     public void run() {
         Scanner scanner = new Scanner(System.in);

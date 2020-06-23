@@ -1,6 +1,9 @@
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Class used for testing
+ */
 public class TestLSRNodeDijkstra {
 
     public static void main(String[] args){

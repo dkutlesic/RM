@@ -1,20 +1,26 @@
+/**
+ *  Text Message is used for communication between two hosts.
+ */
 public class TextMessage extends Message {
-
-    // two hosts will communicate via text messages
-
+    /**
+     * The identification of a message source host
+     */
     private Integer source;
+    /**
+     * The identification of a message destination host
+     */
     private Integer destination;
+    /**
+     * Message content
+     */
     private String content;
+    /**
+     * The host that receives the message
+     */
     private Host reciever;
 
-    public Host getReciever() {
-        return reciever;
-    }
-
-    public Integer getDestination() {
-        return destination;
-    }
-
+    public Host getReciever() { return reciever; }
+    public Integer getDestination() { return destination; }
     public String getContent() { return content; }
     public Integer getSource() { return source; }
 
