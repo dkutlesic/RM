@@ -142,15 +142,57 @@ public class LSRNode extends Node {
      * @param deadNeighbors Set of identification of dead nodes
      */
     @Override
-    void cleanupDeadRouts(Set<Integer> deadNeighbors) {
+    public void cleanupDeadRouts(Set<Integer> deadNeighbors) {
         phaseLock.lock();
         if (!deadNeighbors.isEmpty()) {
+            deadNeighbors.forEach(neighborId -> removeVertex(neighborId));
+
             phase = Phase.UPDATED;
-            // TODO:
-            // should update topology
         }
 
         phaseLock.unlock();
+    }
+
+    /**
+     * Removing a link between two given vertices (their identification)
+     * @param vertexId1
+     * @param vertexId2
+     */
+    public void removeLink(Integer vertexId1, Integer vertexId2){
+        Vertex v1, v2;
+
+        if(!topology.containsVertexId(vertexId1))
+            return;
+        v1 = topology.getVertexWithId(vertexId1);
+
+        if(!topology.containsVertexId(vertexId2))
+            return;
+        v2 = topology.getVertexWithId(vertexId2);
+
+        v1.edges.removeIf(e -> e.getTo().getId() == vertexId2);
+        v2.edges.removeIf(e -> e.getTo().getId() == vertexId1);
+    }
+
+
+    /**
+     * Removing vertex with a given id
+     * Removing links to-from this vertex
+     * @param vertexId identification of the vertex
+     */
+    public void removeVertex(Integer vertexId){
+        Vertex v;
+
+        if(!topology.containsVertexId(vertexId))
+            return;
+        v = topology.getVertexWithId(vertexId);
+
+        //removing links to-from this vertex
+        for(Vertex ver: topology.vertices){
+            removeLink(ver.id, v.id);
+        }
+
+        //removing vertex
+        topology.vertices.removeIf(ver -> ver.id  == vertexId);
     }
 
     /**

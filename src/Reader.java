@@ -11,10 +11,23 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.stream.Stream;
 
+/**
+ * Abstract reader thread
+ * Node reader and Host reader are Reader extensions
+ */
 abstract public class Reader extends Thread {
 
+    /**
+     * Reader port
+     */
     private int port;
+    /**
+     * Reader identification
+     */
     private int identification;
+    /**
+     * (identification of a neighbor, socket for the neighbor)
+     */
     private Map<Integer, Socket> socketTable;
 
     public Reader(int port, int identification, Map<Integer, Socket> socketTable){
@@ -25,13 +38,16 @@ abstract public class Reader extends Thread {
     }
 
 
+    /**
+     * Accept and process messages (non-blocking)
+     */
     @Override
     public void run() {
         try(Selector selector = Selector.open();
             ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()){
 
             if(selector == null || serverSocketChannel == null){
-                //TODO DON'T LET IT STAY LIKE THIS
+                //FIXME DON'T LET IT STAY LIKE THIS
                 System.err.println("well what can you do :/");
             }
 
@@ -106,6 +122,10 @@ abstract public class Reader extends Thread {
         }
     }
 
+    /**
+     * Host and node readers process messages differently
+     * @param message
+     */
     abstract public void processMessage(Message message);
 
     private void readFromKey(SelectionKey key) {
