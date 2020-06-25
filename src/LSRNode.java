@@ -3,8 +3,11 @@ import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * LSRNode states for Link State routing node
+ * LSRNode states for Link State routing (LSR) node
  * If LSR node is used the LSR algorithm is applied for routing
+ * Each node runs its own algorithm
+ * First, each node flood neighbors with its adjacency tables. When all nodes have full topology
+ * of a network, Dijkstra's algorithm is applied to calculate optimal paths and next hops
  */
 public class LSRNode extends Node {
 
@@ -75,8 +78,11 @@ public class LSRNode extends Node {
         });
     }
 
+    /**
+     * @param message
+     * Handling flooding topology message
+     */
     @Override
-    //FIXME documentation
     void handleRoutingMessage(Message message) {
 
         assert message instanceof FloodingTopologyMessage;
@@ -354,8 +360,11 @@ public class LSRNode extends Node {
         public Vertex getNextHop() { return nextHop; }
     }
 
+    /**
+     * Reporting to neighbors that we are alive and well
+     * If the topology has changed, send the message to neighbors about changing
+     */
     @Override
-    //FIXME
     protected void reportToNeighbours(){
         super.reportToNeighbours();
 
@@ -422,6 +431,10 @@ public class LSRNode extends Node {
             return null;
         }
 
+        /**
+         * @param id
+         * @return true if the graph contains the vertex with given identification
+         */
         public boolean containsVertexId(Integer id){
             for(Vertex v : vertices){
                 if(v.getId() == id)
@@ -430,7 +443,12 @@ public class LSRNode extends Node {
             return false;
         }
 
-        //FIXME
+        /**
+         * @param v1 vertex1 identification
+         * @param v2 vertex2 identification
+         * @param length //FIXME think we do not need it?
+         * @return
+         */
         public boolean containsEdge(Integer v1, Integer v2, int length){
             if(vertices.stream()
                     .map(v -> v.id)

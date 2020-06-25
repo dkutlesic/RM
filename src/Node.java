@@ -5,6 +5,11 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.locks.ReentrantLock;
 
+
+/**
+ * Node class is the crucial class for routing
+ * Node represents a router in the network
+ */
 public abstract class Node extends Thread{
     //statistics
     private long sentPacketsNumber;
@@ -12,16 +17,31 @@ public abstract class Node extends Thread{
     private long transmissionsNumber;
 
     //tables
+    /**
+     * (identification of a neighbor, distance to the neighbor)
+     */
     protected Map<Integer, Integer> adjacentNodesTable;
+    /**
+     * (identification of a neighbor, socket for the neighbor)
+     */
     protected Map<Integer, Socket> socketTable;
+    /**
+     * (identification of a targeted receiver, identification of the next hop)
+     */
     protected Map<Integer, Integer> routingTable;
 
     //utils
-    public static final int NODE_PORT_OFFSET = 1234; // node i will be connected to port_offset + i port
+    /**
+     * The node will be connected to NODE_PORT_OFFSET + port
+     */
+    public static final int NODE_PORT_OFFSET = 1234;
     private int port;
     protected int identification;
     private static final long REPORT_TIME = 100;
-    private Set<Integer> liveNeighbors; // FIXME every time we receive ping message, add message source to the liveNeighbors set
+    /**
+     * The set of a identification of neighbors that sent ping message in the last cycle
+     */
+    private Set<Integer> liveNeighbors;
     public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;  // hopefully not needed
 
     //locksTrue
@@ -35,7 +55,14 @@ public abstract class Node extends Thread{
     //IO
     private NodeWriter nodeWriter;
     private NodeReader reader;
+    /**
+     * (identification of the neighbor, the output stream of a neighbor)
+     */
     protected Map<Integer, PrintWriter> outStreams = new HashMap<>();
+
+    /**
+     * The stream for logs/messages_forgoten.txt
+     */
     private static PrintWriter placeholderStream;
 
     static {
@@ -78,10 +105,22 @@ public abstract class Node extends Thread{
         }
     }
 
+    /**
+     * Handling routing message is implemented differently for different types of routing algorithms (types of nodes)
+     * @param message
+     */
     abstract void handleRoutingMessage(Message message);
 
+    /**
+     * Updating routing table (cleaning up dead routes)
+     * @param deadNeighbors
+     */
     abstract void cleanupDeadRouts(Set<Integer> deadNeighbors);
 
+    /**
+     * Select dead neighbors and clean up dead routes
+     * Update adjacency table (removing dead neighbors)
+     */
     public void checkNeighbours(){
         // look what links haven't spoken with us in a while
         Set<Integer> deadNeighbors = new HashSet<>();
@@ -119,8 +158,10 @@ public abstract class Node extends Thread{
         }
     }
 
+    /**
+     * send ping to all neighbours that we are alive and well
+     */
     protected void reportToNeighbours(){
-        // send ping to all neighbours that we are alive and well
         PingMessage pingMessage = new PingMessage(this.identification);
         try {
 //            out.println(java.time.LocalDate.now() + ": " + pingMessage);
@@ -132,10 +173,12 @@ public abstract class Node extends Thread{
         log.flush();
     }
 
+    /**
+     *  deletes edge towards node with ID nodeID
+     * @param nodeID
+     */
     public void deleteEdge(int nodeID){
-        /**
-          deletes edge towards node with ID nodeID
-         */
+
         socketTableLock.lock();
         try {
             socketTable.get(nodeID).close();
@@ -146,6 +189,9 @@ public abstract class Node extends Thread{
         socketTableLock.unlock();
     }
 
+    /**
+     * Node thread
+     */
     @Override
     public void run() {
         log.println(port);
@@ -242,6 +288,9 @@ public abstract class Node extends Thread{
 
     }
 
+    /**
+     * Reader thread specialized for a node
+     */
     private class NodeReader extends Reader {
 
         private NodeWriter nodeWriter;
@@ -251,6 +300,10 @@ public abstract class Node extends Thread{
             this.nodeWriter = nodeWriter;
         }
 
+        /**
+         * Put message to Writing Buffer queue
+         * @param message
+         */
         @Override
         public void processMessage(Message message) {
 
@@ -262,12 +315,20 @@ public abstract class Node extends Thread{
         }
     }
 
+    /**
+     * Writer thread specialized for node
+     */
     protected class NodeWriter extends Thread{
 
+        /**
+         * The size of the buffer
+         */
         private static final int BUFF_SIZE = 10;
 
-
         public int identification;
+        /**
+         * Messages that need to be forwarded
+         */
         private BlockingQueue<Message> writingBuffer;
         private Set<Integer> floodingMessages = new HashSet<>();
 
@@ -280,19 +341,22 @@ public abstract class Node extends Thread{
             return writingBuffer;
         }
 
+        /**
+         * forever: take next message from the queue and forward it
+         */
         @Override
         public void run() {
             while(true){
                 Message nextMessage = null;
                 try {
-                    // take next msg in buffer and write it
-                    //this call will block if buffer is empty
+                    // take next message to the buffer and write it to the stream
+                    // It will block if the buffer is empty
                     nextMessage = writingBuffer.take();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
                 if(nextMessage == null)
-                    System.err.println("msg is null");
+                    System.err.println("Message is null");
                 else{
                     switch (nextMessage.getType()){
                         case TEXT_MESSAGE:
@@ -318,9 +382,13 @@ public abstract class Node extends Thread{
             }
         }
 
+        /**
+         * Flood the message to neighbors
+         * @param message
+         */
         private void floodMessage(FloodingMessage message){
             if(! floodingMessages.contains(message.getFloodingId())){
-                // we never sent (or seen for that matter) this message
+                // this message has not been seen (or seen for flooding)
 
                 floodingMessages.add(message.getFloodingId());
 
@@ -351,16 +419,22 @@ public abstract class Node extends Thread{
                 if(message instanceof FloodingNewConnectionMessage){
                     int source = message.getOriginalSender();
                     int newHost = ((FloodingNewConnectionMessage) message).getNewHostId();
-                    //TODO update routing table
+                    //FIXME update routing table
                 }
                 else if(message instanceof FloodingTopologyMessage){
                     Map<Integer, Integer> senderAdjacentNodesTable = ((FloodingTopologyMessage) message).getAdjacentNodesTable();
                     int sender = message.getOriginalSender();
-                    //TODO update topology
+                    //FIXME update topology
                 }
             }
         }
 
+        /**
+         * adding new connection
+         * updating socket table, output streams table
+         * @param port
+         * @param id identification
+         */
         private void makeConnection(int port, int id) {
             try {
                 Socket socket = new Socket("localhost", port);
@@ -385,14 +459,18 @@ public abstract class Node extends Thread{
             }
         }
 
+        /**
+         * forwarding the message depending on the routing table
+         * @param message
+         */
         private void forwardMessage(TextMessage message){
             routingTableLock.lock();
             try{
                 if(routingTable.containsKey(message.getDestination())){
-                    // we know where to send
+                    // it is known where the message should be sent
                     if(routingTable.get(message.getDestination()) == identification){
-                        // host is directly connected to us if routing table point to us
-                        // in outStreams table we can get output-stream for destination
+                        // host is directly connected to this node if routing table point to this node
+                        // in outStreams table - output stream of a destination
                         PrintWriter outWriter = outStreams.get(message.getDestination());
                         outWriter.print(message.sendingFormat());
                         outWriter.flush();
@@ -400,7 +478,7 @@ public abstract class Node extends Thread{
                     else
                     {
                         if(routingTable.get(message.getDestination()) == -1){
-                            // it means destination got changed up and we need to finish routing
+                            // it means that destination got changed up and the routing need to be finished
                             try {
                                 writingBuffer.put(message);
                             } catch (InterruptedException e) {
@@ -408,8 +486,8 @@ public abstract class Node extends Thread{
                             }
                         }
                         else{
-                            // here we know that routing table entry is pointing us toward next router
-                            // socket for next router is located in socketTable
+                            // Routing table entry is pointing us toward next router
+                            // The socket for next router is located in socketTable
                             PrintWriter outWriter = outStreams.get(routingTable.get(message.getDestination()));
                             outWriter.print(message.sendingFormat());
                             outWriter.flush();
@@ -427,9 +505,12 @@ public abstract class Node extends Thread{
             }
         }
 
+        /**
+         * Sending the ping message
+         * @param pingMessage
+         */
         public void pingMessage(PingMessage pingMessage) {
             if(pingMessage.getSource() == this.identification) {
-                // we are sending ping message
                 adjacentNodesTableLock.lock();
                 try {
                     adjacentNodesTable.forEach((neighbour, length) -> {

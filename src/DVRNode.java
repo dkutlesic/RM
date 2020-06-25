@@ -3,10 +3,25 @@ import org.apache.commons.lang3.SerializationUtils;
 import java.io.PrintWriter;
 import java.util.*;
 
+/**
+ * DVRNode states for Distance Vector routing (DVR) node
+ * If DVR node is used the DVR algorithm is applied for routing
+ * Each node maintains a vector of distances and next hops to all destinations
+ * Each node runs its own algorithm
+ *
+ * - Periodically send the vector to all of its neighbors
+ * - Update the vector for each destination by selecting the shortest distance heard after adding cost of a neighbor cost
+ */
 public class DVRNode extends Node {
 
     //DVR
+    /**
+     * identifications of all nodes in the topology
+     */
     private List<Integer> listOfAllNodes;
+    /**
+     * distance vectors
+     */
     private Map<Integer, Integer> distancesFromNodes;
 
     public DVRNode(Map<Integer, Integer> adjacentNodesTable, int id, Collection<Integer> listOfAllNodes) {
@@ -21,12 +36,16 @@ public class DVRNode extends Node {
         this.distancesFromNodes.put(this.identification, 0);
     }
 
+    /**
+     * Handling distance vector routing message
+     * @param message
+     */
     @Override
     void handleRoutingMessage(Message message) {
         assert message instanceof DistanceVectorRoutingMessage;
         int source = ((DistanceVectorRoutingMessage) message).getSource();
         if(source == identification){
-            // we sent message we should send it to our neighbours
+            // The message is sent; the message is sent to neighbors
             adjacentNodesTable.forEach((Integer neighbour, Integer length) -> {
                 if(outStreams.containsKey(neighbour - Node.NODE_PORT_OFFSET)){
                     PrintWriter outWriter = outStreams.get(neighbour - Node.NODE_PORT_OFFSET);
@@ -39,7 +58,7 @@ public class DVRNode extends Node {
             });
         }
         else {
-            // we got message, we should handle it
+            // The message is for this node message, this node should handle it
             if (adjacentNodesTable.containsKey(source + Node.NODE_PORT_OFFSET)) {
                 int distance_from_source = adjacentNodesTable.get(source + Node.NODE_PORT_OFFSET);
                 ((DistanceVectorRoutingMessage) message).getDistances().forEach((Integer node, Integer distance) -> {
@@ -57,6 +76,10 @@ public class DVRNode extends Node {
         }
     }
 
+    /**
+     * Set of identification of dead nodes
+     * @param deadNeighbors
+     */
     @Override
     void cleanupDeadRouts(Set<Integer> deadNeighbors) {
         routingTableLock.lock();
@@ -83,8 +106,12 @@ public class DVRNode extends Node {
 
     }
 
+    /**
+     * Reporting to neighbors that we are alive and well
+     */
     @Override
     protected void reportToNeighbours() {
+        //send ping to all neighbours that we are alive and well
         super.reportToNeighbours();
         DistanceVectorRoutingMessage routingMessage = new DistanceVectorRoutingMessage(distancesFromNodes, this.identification);
         try {
