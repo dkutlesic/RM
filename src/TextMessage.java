@@ -7,9 +7,9 @@ public class TextMessage extends Message {
      */
     private Integer source;
     /**
-     * The identification of a message destination host
+     * The identification of a message reciever host
      */
-    private Integer destination;
+    private Integer receiver;
     /**
      * Message content
      */
@@ -17,31 +17,30 @@ public class TextMessage extends Message {
     /**
      * The host that receives the message
      */
-    private Host reciever;
+    private int receiverRouterId;
 
-    public Host getReciever() { return reciever; }
-    public Integer getDestination() { return destination; }
+    public int getReceiverRouterId() {
+        return receiverRouterId;
+    }
+
+    public Integer getReceiver() { return receiver; }
     public String getContent() { return content; }
     public Integer getSource() { return source; }
 
-    public TextMessage(Integer source, Integer destination, String content) {
+
+    public TextMessage(Integer source, Integer receiver, int receiverRouterId, String content) {
         this.source = source;
-        this.destination = destination;
+        this.receiver = receiver;
         this.content = content;
+        this.receiverRouterId = receiverRouterId;
     }
 
-    public TextMessage(Integer source, Host reciever, String content){
-        this.source = source;
-        this.reciever = reciever;
-//        this.destination = reciever.getPriority();
-        this.content = content;
-    }
 
     @Override
     public String toString() {
         return "TextMessage{" +
                 "source=" + source +
-                ", destination=" + destination +
+                ", receiver=" + receiver +
                 ", content='" + content + '\'' +
                 '}';
     }

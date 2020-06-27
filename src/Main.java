@@ -13,23 +13,6 @@ public class Main {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        Node.ROUTING_TABLE_FOR_DEMO = new Map[3];
-        Node.ROUTING_TABLE_FOR_DEMO[0] = new HashMap<>();
-        Node.ROUTING_TABLE_FOR_DEMO[0].put(2, 1);
-        Node.ROUTING_TABLE_FOR_DEMO[0].put(1, 0);
-        Node.ROUTING_TABLE_FOR_DEMO[0].put(0, 0);
-
-        Node.ROUTING_TABLE_FOR_DEMO[1] = new HashMap<>();
-        Node.ROUTING_TABLE_FOR_DEMO[1].put(2, 1);
-        Node.ROUTING_TABLE_FOR_DEMO[1].put(1, 0);
-        Node.ROUTING_TABLE_FOR_DEMO[1].put(0, 2);
-
-        Node.ROUTING_TABLE_FOR_DEMO[2] = new HashMap<>();
-        Node.ROUTING_TABLE_FOR_DEMO[2].put(2, 1);
-        Node.ROUTING_TABLE_FOR_DEMO[2].put(1, 0);
-        Node.ROUTING_TABLE_FOR_DEMO[2].put(0, 0);
-
-
         JSONParser parser = new JSONParser();
 
         Vector<Map<Integer, Integer>> tables = null;
@@ -75,14 +58,19 @@ public class Main {
             e.printStackTrace();
         }
 
-        // how things should be done
         Vector<Node> nodes = new Vector<>();
 
         for (int i = 0; i < tables.size(); i++) {
-            LSRNode node = new LSRNode(tables.get(i), i);
+            DVRNode node = new DVRNode(tables.get(i), i, seenNodes);
             nodes.add(node);
             node.start();
         }
+
+//        for (int i = 0; i < tables.size(); i++) {
+//            LSRNode node = new LSRNode(tables.get(i), i);
+//            nodes.add(node);
+//            node.start();
+//        }
 
         Thread.sleep(5000);
 
@@ -92,17 +80,6 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
 
         scanner.nextLine();
-
-//        try {
-//            while(true) {
-//                Thread.sleep(60 * 1000);
-//
-//                //update-uj matricu
-//            }
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-//
 
     }
 }

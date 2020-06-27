@@ -37,13 +37,11 @@ public abstract class Node extends Thread{
     public static final int NODE_PORT_OFFSET = 1234;
     private int port;
     protected int identification;
-    private static final long REPORT_TIME = 100;
+    private static final long REPORT_TIME = 1000;
     /**
      * The set of a identification of neighbors that sent ping message in the last cycle
      */
     private Set<Integer> liveNeighbors;
-    public static Map<Integer, Integer>[] ROUTING_TABLE_FOR_DEMO;  // hopefully not needed
-
     //locksTrue
     protected ReentrantLock adjacentNodesTableLock;
     protected ReentrantLock socketTableLock;
@@ -84,8 +82,6 @@ public abstract class Node extends Thread{
         this.transmissionsNumber = 0;
         this.adjacentNodesTable = new HashMap<>(adjacentNodesTable);
         this.socketTable = new HashMap<>();
-        //TODO commenting this out for testing LSR node
-        //this.routingTable = new HashMap<>(Node.ROUTING_TABLE_FOR_DEMO[identification]);
         this.liveNeighbors = new HashSet<>();
         this.port = id + NODE_PORT_OFFSET;
         this.identification = id;
@@ -116,6 +112,11 @@ public abstract class Node extends Thread{
      * @param deadNeighbors
      */
     abstract void cleanupDeadRouts(Set<Integer> deadNeighbors);
+
+    /**
+     * takes cares of routing specific tasks
+     */
+    abstract void handleRouting();
 
     /**
      * Select dead neighbors and clean up dead routes
@@ -268,24 +269,13 @@ public abstract class Node extends Thread{
                 e.printStackTrace();
             }
             reportToNeighbours();
+            handleRouting();
             if (cycle % 10 == 0) {
                 checkNeighbours();
                 cycle = 0;
                 liveNeighbors.removeAll(liveNeighbors);
             }
-
-            //for LSRnode: change phase if needed
-            if(this instanceof LSRNode) {
-                if (cycle  == 3) {
-                    ((LSRNode) this).phase = LSRNode.Phase.FLOODING;
-                }
-                else{
-                    ((LSRNode) this).runDijkstra();
-                    ((LSRNode) this).phase = LSRNode.Phase.DIJKSTRA;
-                }
-            }
         }
-
     }
 
     /**
@@ -416,16 +406,16 @@ public abstract class Node extends Thread{
                     adjacentNodesTableLock.unlock();
                 }
 
-                if(message instanceof FloodingNewConnectionMessage){
-                    int source = message.getOriginalSender();
-                    int newHost = ((FloodingNewConnectionMessage) message).getNewHostId();
-                    //FIXME update routing table
-                }
-                else if(message instanceof FloodingTopologyMessage){
-                    Map<Integer, Integer> senderAdjacentNodesTable = ((FloodingTopologyMessage) message).getAdjacentNodesTable();
-                    int sender = message.getOriginalSender();
-                    //FIXME update topology
-                }
+//                if(message instanceof FloodingNewConnectionMessage){
+//                    int source = message.getOriginalSender();
+//                    int newHost = ((FloodingNewConnectionMessage) message).getNewHostId();
+//                    //FIXME update routing table
+//                }
+//                else if(message instanceof FloodingTopologyMessage){
+//                    Map<Integer, Integer> senderAdjacentNodesTable = ((FloodingTopologyMessage) message).getAdjacentNodesTable();
+//                    int sender = message.getOriginalSender();
+//                    //FIXME update topology
+//                }
             }
         }
 
@@ -466,32 +456,29 @@ public abstract class Node extends Thread{
         private void forwardMessage(TextMessage message){
             routingTableLock.lock();
             try{
-                if(routingTable.containsKey(message.getDestination())){
+                if(message.getReceiverRouterId() == identification){
+                    // host is directly connected to this node if routing table point to this node
+                    // in outStreams table - output stream of a destination
+                    PrintWriter outWriter = outStreams.get(message.getReceiver());
+                    outWriter.print(message.sendingFormat());
+                    outWriter.flush();
+                }
+                else if(routingTable.containsKey(message.getReceiver())){
                     // it is known where the message should be sent
-                    if(routingTable.get(message.getDestination()) == identification){
-                        // host is directly connected to this node if routing table point to this node
-                        // in outStreams table - output stream of a destination
-                        PrintWriter outWriter = outStreams.get(message.getDestination());
+                    if(routingTable.get(message.getReceiver()) == null){
+                        // it means that destination got changed up and the routing need to be finished
+                        try {
+                            writingBuffer.put(message);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    else{
+                        // Routing table entry is pointing us toward next router
+                        // The socket for next router is located in socketTable
+                        PrintWriter outWriter = outStreams.get(routingTable.get(message.getReceiver()));
                         outWriter.print(message.sendingFormat());
                         outWriter.flush();
-                    }
-                    else
-                    {
-                        if(routingTable.get(message.getDestination()) == -1){
-                            // it means that destination got changed up and the routing need to be finished
-                            try {
-                                writingBuffer.put(message);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        else{
-                            // Routing table entry is pointing us toward next router
-                            // The socket for next router is located in socketTable
-                            PrintWriter outWriter = outStreams.get(routingTable.get(message.getDestination()));
-                            outWriter.print(message.sendingFormat());
-                            outWriter.flush();
-                        }
                     }
                 }
                 else{

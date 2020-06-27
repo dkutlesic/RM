@@ -8,18 +8,29 @@ public class DistanceVectorRoutingMessage extends Message {
 
     /**
      * Distances represents the vector for routing
-     * Map key: //FIXME
-     * Value: //FIXME
+     * Map key: id of node
+     * Value:   distance to that node
      */
     private Map<Integer, Integer> distances;
+    /**
+     * Routing table
+     * Map key: id of node
+     * Value:   next node in chain
+     */
+    private Map<Integer, Integer> routingTable;
     /**
      * The identification of a node that sent the distance vector routing message
      */
     private int source;
 
-    public DistanceVectorRoutingMessage(Map<Integer, Integer> distances, int source) {
+    public DistanceVectorRoutingMessage(Map<Integer, Integer> distances, Map<Integer, Integer> routingTable, int source) {
         this.distances = distances;
+        this.routingTable = routingTable;
         this.source = source;
+    }
+
+    public boolean makesLoop(int id, int node) {
+        return distances.get(node) != 0 && routingTable.get(node) == id ;
     }
 
     public Map<Integer, Integer> getDistances() {

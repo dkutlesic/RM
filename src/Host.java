@@ -39,7 +39,7 @@ public class Host extends Thread{
                 if(msg.trim() == "stop")
                     break;
 
-                out.write(new TextMessage(id, receiver, msg).sendingFormat());
+                out.write(new TextMessage(id, receiver, 0, msg).sendingFormat());
                 out.flush();
             }
         }
@@ -52,6 +52,11 @@ public class Host extends Thread{
      * Host identificaiton
      */
     private int id;
+
+    /**
+     * ID of router we are connected to
+     */
+    private int router_id;
     /**
      * Port = host identification + HOST_PORT_OFFSET
      */
@@ -66,7 +71,18 @@ public class Host extends Thread{
 
     public void setPort(int port) { this.port = port; }
 
+
+    /**
+     *
+     * @return
+     * id of router we are connected to
+     */
+    public Integer getRouterID() {
+        return this.router_id;
+    }
+
     public static void main(String[] args) {
+        System.out.print("Enter your id: ");
         Scanner scanner = new Scanner(System.in);
         int id = scanner.nextInt();
         Host host = new Host(id);
@@ -80,9 +96,10 @@ public class Host extends Thread{
     public void run() {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("Select router: ");
-        int router_id = scanner.nextInt();
-        int router_port = router_id + Node.NODE_PORT_OFFSET;
+        System.out.print("Select router: ");
+
+        this.router_id = scanner.nextInt();
+        int router_port = this.router_id + Node.NODE_PORT_OFFSET;
 
         HostReader reader = new HostReader(port, id, this.socketTable);
 

@@ -46,6 +46,7 @@ public class DVRNode extends Node {
         int source = ((DistanceVectorRoutingMessage) message).getSource();
         if(source == identification){
             // The message is sent; the message is sent to neighbors
+            adjacentNodesTableLock.lock();
             adjacentNodesTable.forEach((Integer neighbour, Integer length) -> {
                 if(outStreams.containsKey(neighbour - Node.NODE_PORT_OFFSET)){
                     PrintWriter outWriter = outStreams.get(neighbour - Node.NODE_PORT_OFFSET);
@@ -56,16 +57,28 @@ public class DVRNode extends Node {
                     System.err.println("UNKNOWN SOCKET FOR NEIGHBOUR");
                 }
             });
+            adjacentNodesTableLock.unlock();
         }
         else {
             // The message is for this node message, this node should handle it
+            adjacentNodesTableLock.lock();
+            routingTableLock.lock();
             if (adjacentNodesTable.containsKey(source + Node.NODE_PORT_OFFSET)) {
                 int distance_from_source = adjacentNodesTable.get(source + Node.NODE_PORT_OFFSET);
                 ((DistanceVectorRoutingMessage) message).getDistances().forEach((Integer node, Integer distance) -> {
                     if (distance >= 0) {
                         if ( distancesFromNodes.get(node) < 0 || distance + distance_from_source < distancesFromNodes.get(node)) {
-                            distancesFromNodes.put(node, distance + distance_from_source);
-                            routingTable.put(node, source);
+                            if(!((DistanceVectorRoutingMessage) message).makesLoop(identification, node)) {
+                                distancesFromNodes.put(node, distance + distance_from_source);
+                                routingTable.put(node, source);
+                            }
+                        }
+                    }
+                    else{
+                        if(distancesFromNodes.get(node) > 0 && routingTable.get(node) == source){
+                            // this means that we need new route
+                            distancesFromNodes.put(node, -1);
+                            routingTable.put(node, null);
                         }
                     }
 
@@ -73,6 +86,8 @@ public class DVRNode extends Node {
             } else {
                 System.err.println("got packet from unknown node!");
             }
+            routingTableLock.unlock();
+            adjacentNodesTableLock.unlock();
         }
     }
 
@@ -85,20 +100,15 @@ public class DVRNode extends Node {
         routingTableLock.lock();
         try {
             deadNeighbors.forEach(deadRoute -> {
-                log.println("removing " + (deadRoute - NODE_PORT_OFFSET) );
-                routingTable.put(deadRoute - NODE_PORT_OFFSET, null);
-                distancesFromNodes.put(deadRoute - NODE_PORT_OFFSET, -1);
-                System.err.println(routingTable);
+                log.println("cleanup after " + deadRoute);
                 routingTable.forEach((dest, next_hop) -> {
                     if(dest != this.identification
-                            && dest != deadRoute - NODE_PORT_OFFSET
                             && next_hop == deadRoute - NODE_PORT_OFFSET){
                         routingTable.put(dest, null);
                         distancesFromNodes.put(dest, -1);
                     }
                 });
             });
-            log.println("routing table: " + routingTable);
         }
         finally {
             routingTableLock.unlock();
@@ -107,19 +117,16 @@ public class DVRNode extends Node {
     }
 
     /**
-     * Reporting to neighbors that we are alive and well
+     * Send our distance vector to all neighbours
      */
     @Override
-    protected void reportToNeighbours() {
-        //send ping to all neighbours that we are alive and well
-        super.reportToNeighbours();
-        DistanceVectorRoutingMessage routingMessage = new DistanceVectorRoutingMessage(distancesFromNodes, this.identification);
+    void handleRouting() {
+        log.println("distances from nodes : " + distancesFromNodes);
+        DistanceVectorRoutingMessage routingMessage = new DistanceVectorRoutingMessage(distancesFromNodes, routingTable, this.identification);
         try {
-//            out.println(java.time.LocalDate.now() + ": " + routingMessage);
             if(routingMessage.sendingFormat().indexOf('!') != routingMessage.sendingFormat().length() - 1){
-                log.write("CAN CAUSE PROBLEMS");
+                log.println("====CAN CAUSE PROBLEMS====");
             }
-
             log.flush();
             getNodeWriter().getWritingBuffer().put(routingMessage);
         } catch (InterruptedException e) {

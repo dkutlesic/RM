@@ -38,7 +38,15 @@ public class LSRNode extends Node {
      * Maximal distance between nodes
      * Used in Dijkstra's algorithm for a distance initialization
      */
-    private static int infinity = 100000;
+    private static final int infinity = 100000;
+    /**
+     * Number of cycles we wait before we activate dijkstra
+     */
+    private static final int PATIENCE_TIME = 10;
+    /**
+     * Number of cycles passed since last change in topology
+     */
+    private int cycles_passed;
     /**
      * Topology is a graph that represents the network topology
      */
@@ -54,6 +62,7 @@ public class LSRNode extends Node {
         super(adjacentNodesTable, identification);   // here we know that routing table entry is pointing us toward next router
 
         this.identification = identification;
+        this.cycles_passed =0;
         this.routingTable = new HashMap<>();
         this.phase = Phase.FLOODING;
         initializeTopology();
@@ -84,7 +93,6 @@ public class LSRNode extends Node {
      */
     @Override
     void handleRoutingMessage(Message message) {
-
         assert message instanceof FloodingTopologyMessage;
         phaseLock.lock();
         if(this.phase == Phase.FINISHED){
@@ -98,6 +106,7 @@ public class LSRNode extends Node {
                                 // the topology need to be updated
                                 updateTopologyWithLink(((FloodingTopologyMessage) message).originalSender, id, length);
                                 phase = Phase.FLOODING;
+                                cycles_passed = 0;
                             }
                         });
             }
@@ -129,6 +138,7 @@ public class LSRNode extends Node {
                     floodingTopologyMessage.getAdjacentNodesTable().forEach((k, v) -> {
                         updateTopologyWithVertex(k);
                         updateTopologyWithLink(floodingTopologyMessage.originalSender, k, v);
+                        cycles_passed = 0;
                     });
                 } else {
                     System.err.println("got packet from unknown node!");
@@ -145,8 +155,16 @@ public class LSRNode extends Node {
     public void cleanupDeadRouts(Set<Integer> deadNeighbors) {
         phaseLock.lock();
         if (!deadNeighbors.isEmpty()) {
-            deadNeighbors.forEach(neighborId -> removeVertex(neighborId));
 
+            routingTableLock.lock();
+            deadNeighbors.forEach(neighborId -> {
+                removeVertex(neighborId);
+                routingTable.forEach((node, next_hop) -> {
+                    if(next_hop != null && next_hop == neighborId)
+                        routingTable.put(node, null);
+                });
+            });
+            routingTableLock.unlock();
             phase = Phase.UPDATED;
         }
 
@@ -237,7 +255,6 @@ public class LSRNode extends Node {
     protected void updateTopologyWithVertex(int vertexId){
         if(!topology.getVertices().contains(topology.getVertexWithId(vertexId))) {
             topology.addVertex(new Vertex(vertexId));
-            //System.out.println("Vertex added: " + vertexId);
         }
     }
 
@@ -272,13 +289,7 @@ public class LSRNode extends Node {
                 }
             }
             unprocessed.remove(current);
-            /*System.out.println("\tcurrent situation:");
-            for(Vertex v: topology.getVertices()){
-                System.out.println(v.getId() + " " + v.getDistance());
-            }*/
         }
-
-        //previous.forEach((k,v) -> System.out.println("ja: " + k.getId() + " roditelj: " + v.getId()));
 
         //calculating next hop
         routingTableLock.lock();
@@ -291,7 +302,7 @@ public class LSRNode extends Node {
                 ancestor = previous.get(ancestor);
             }
             v.setNextHop(nextHop);
-            routingTable.put(v.id , nextHop.id);
+            routingTable.put(v.id , nextHop.id );
         }
         routingTableLock.unlock();
         this.phase = Phase.FINISHED;
@@ -403,26 +414,28 @@ public class LSRNode extends Node {
     }
 
     /**
-     * Reporting to neighbors that we are alive and well
-     * If the topology has changed, send the message to neighbors about changing
+     * Check phase and takes action accordingly
      */
     @Override
-    protected void reportToNeighbours(){
-        super.reportToNeighbours();
-
+    void handleRouting() {
         phaseLock.lock();
         if(this.phase == Phase.UPDATED){
             // this will mean we updated something in our adjacency neighbour list
-            FloodingTopologyMessage messaqe = new FloodingTopologyMessage(identification, 0, identification,adjacentNodesTable);
+            FloodingTopologyMessage message = new FloodingTopologyMessage(identification, 0, identification,adjacentNodesTable);
             try {
-                getNodeWriter().getWritingBuffer().put(messaqe);
+                getNodeWriter().getWritingBuffer().put(message);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
             phase = Phase.FLOODING;
         }
         else if(this.phase == Phase.FLOODING){
-            // if we are in flooding state check how much time has passed since last change
+            if(cycles_passed == PATIENCE_TIME){
+                phase = Phase.DIJKSTRA;
+                runDijkstra();
+            }
+            else
+                cycles_passed++;
         }
         phaseLock.unlock();
     }
