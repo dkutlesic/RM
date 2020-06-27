@@ -48,6 +48,10 @@ public class LSRNode extends Node {
      */
     private int cycles_passed;
     /**
+     * number of topology messages we sent
+     */
+    private int messages_sent;
+    /**
      * Topology is a graph that represents the network topology
      */
     protected Graph topology;
@@ -62,6 +66,7 @@ public class LSRNode extends Node {
         super(adjacentNodesTable, identification);   // here we know that routing table entry is pointing us toward next router
 
         this.identification = identification;
+        this.messages_sent = 0;
         this.cycles_passed =0;
         this.routingTable = new HashMap<>();
         this.phase = Phase.FLOODING;
@@ -146,6 +151,9 @@ public class LSRNode extends Node {
             }
         }
         phaseLock.unlock();
+
+
+        nodeWriter.floodMessage((FloodingMessage) message);
     }
 
     /**
@@ -421,7 +429,7 @@ public class LSRNode extends Node {
         phaseLock.lock();
         if(this.phase == Phase.UPDATED){
             // this will mean we updated something in our adjacency neighbour list
-            FloodingTopologyMessage message = new FloodingTopologyMessage(identification, 0, identification,adjacentNodesTable);
+            FloodingTopologyMessage message = new FloodingTopologyMessage(identification, ++messages_sent * 1000 + identification, identification,adjacentNodesTable);
             try {
                 getNodeWriter().getWritingBuffer().put(message);
             } catch (InterruptedException e) {

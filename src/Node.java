@@ -51,7 +51,7 @@ public abstract class Node extends Thread{
     protected PrintWriter log;
 
     //IO
-    private NodeWriter nodeWriter;
+    protected NodeWriter nodeWriter;
     private NodeReader reader;
     /**
      * (identification of the neighbor, the output stream of a neighbor)
@@ -376,7 +376,7 @@ public abstract class Node extends Thread{
          * Flood the message to neighbors
          * @param message
          */
-        private void floodMessage(FloodingMessage message){
+        public void floodMessage(FloodingMessage message){
             if(! floodingMessages.contains(message.getFloodingId())){
                 // this message has not been seen (or seen for flooding)
 
@@ -435,7 +435,7 @@ public abstract class Node extends Thread{
                 finally {
                     socketTableLock.unlock();
                 }
-                outStreams.put(id, new PrintWriter(socket.getOutputStream()));
+                outStreams.put(id + Host.HOST_PORT_OFFSET, new PrintWriter(socket.getOutputStream()));
 
                 socketTableLock.lock();
                 try {
@@ -459,7 +459,7 @@ public abstract class Node extends Thread{
                 if(message.getReceiverRouterId() == identification){
                     // host is directly connected to this node if routing table point to this node
                     // in outStreams table - output stream of a destination
-                    PrintWriter outWriter = outStreams.get(message.getReceiver());
+                    PrintWriter outWriter = outStreams.get(message.getReceiver() + Host.HOST_PORT_OFFSET);
                     outWriter.print(message.sendingFormat());
                     outWriter.flush();
                 }
@@ -501,6 +501,7 @@ public abstract class Node extends Thread{
                 adjacentNodesTableLock.lock();
                 try {
                     adjacentNodesTable.forEach((neighbour, length) -> {
+                        log.println("out streams: " + outStreams);
                         if (outStreams.containsKey(neighbour - Node.NODE_PORT_OFFSET)) {
                             PrintWriter outWriter = outStreams.get(neighbour - NODE_PORT_OFFSET);
                             outWriter.write(pingMessage.sendingFormat());
